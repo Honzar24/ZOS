@@ -1,5 +1,9 @@
-include_directories(hnet PUBLIC ../include/)
+include_directories(inodfs PUBLIC ../include/)
 
-set(SOURCES )
+file(GLOB HEADER_LIST CONFIGURE_DEPENDS "${PROJECT_SOURCE_DIR}/include/*.hpp")
+set(SOURCES_LIST superBlock.cpp fileSystem.cpp)
+
+
+add_library(inodfs  ${HEADER_LIST} ${SOURCES_LIST})
 
 
