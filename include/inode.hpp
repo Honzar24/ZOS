@@ -1,13 +1,8 @@
 #pragma once
 
-#include <any>
+
 
 #include "config.hpp"
-
-enum inode_types: counter_type{
-    file = 0,
-    dir,
-};
 
 struct inode_poiters
 {
@@ -37,8 +32,14 @@ struct inode_poiters
 class inode
 {
 public:
+    enum inode_types: counter_type{
+    nodef=0,
+    file,
+    dir,
+    };
+    
     //Unikatni identifikator idnodu
-    size_type inode_id;
+    size_type id;
     //file type
     inode_types type;
     //Velikost souboru v Bajtech
@@ -49,5 +50,5 @@ public:
     inode_poiters pointers;
 public: 
     inode(size_type inode_id,inode_types type,size_type fileSize);
-    inode();    
+    inline inode():inode(0,nodef,0){};    
 };
