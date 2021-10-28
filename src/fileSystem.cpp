@@ -7,96 +7,87 @@
 #include <fileSystem.hpp>
 #include <inode.hpp>
 
-void writeBitArray(std::ostream& os,std::vector<bool>& bitArray)
-{
-    for (auto it = bitArray.cbegin();it != bitArray.cend();)
-    {
-        char byte = 0;
-        for(unsigned char mask = 1; mask > 0 && it != bitArray.cend(); it++, mask <<= 1)
-            if(*it)
-                byte |= mask; 
-        os.write(&byte,sizeof(byte));
-    }
+fileSystem::fileSystem(std::string& fileName, superBlock& sb):fileName(fileName),sb(sb){
 }
-
 fileSystem::fileSystem(std::string& fileName): fileName(fileName){
     fileStream.open(fileName,std::ios::out| std::ios::in | std::ios::binary);
     if (!fileStream.is_open())
     {
-        std::cerr << "File can not be open by program. " << strerror(errno) << std::endl;
+        std::cerr << "WARN:File " << fileName << " can not be open by program. " << strerror(errno) << std::endl;
     }   
 }
 fileSystem::~fileSystem(){
 }
 
+char* createBitArray(size_t bytes){
+    char* bitArray = new char[bytes];
+    std::memset(bitArray,0,bytes);
+    return bitArray;
+}
+
 bool fileSystem::format(size_type size)
 {
-    fileStream.open(fileName, std::ios::out | std::ios::in | std::ios::binary | std::ios::trunc);
-    if (!fileStream.is_open())
-    {
-        std::cerr << "File can not be create by program. " << strerror(errno) << std::endl;
-        return false;
+    sb.diskSize = size;
+    // +2 protoze maximalne si pucim 2 Byty pro ByteArray
+    assert(size > (sizeof(superBlock) + 2));     
+    size-= sizeof(superBlock) + 2;
+    if(sb.blockCount == 0 && sb.inodeCount == 0)
+    {   
+        sb.blockCount = size / ((1 + pomerDataInode)/8 + pomerDataInode * sizeof(inode) + sb.blockSize);
+        sb.inodeCount = pomerDataInode * sb.blockCount;
+        assert(sb.blockCount >= minDataBlockCount);
+        assert(sb.inodeCount >= minInodeCount);
     }
-
-    sb.disk_size = size;
-
-    size-= sizeof(superBlock);
-    
-    sb.block_count = size / ((1 + pomerDataInode)/8 + pomerDataInode + sb.block_size);
-    sb.inode_count = pomerDataInode * sb.block_count;
-
     if (!sb.setupFilePointers())
     {
         return false;
     }
-    
 
-    sb.wb(fileStream);
-    for(size_t i = sizeof(superBlock); i < sb.disk_size; i++)
+    fileStream.close();
+    fileStream.open(fileName, std::ios::out | std::ios::in | std::ios::binary | std::ios::trunc);
+    if (!fileStream.is_open())
     {
-        char z = 0;
-        fileStream.write(&z,sizeof(char));
+        std::cerr << "FATAL:File " << fileName << " can not be create by program. " << strerror(errno) << std::endl;
+        return false;
     }
+    //superBlock
+    fileStream.write((char*)&sb,sizeof(superBlock));
     //inode bitArray
-    std::vector<bool> inodeArray(sb.inode_count);
-    inodeArray[0]=true;
-    fileStream.seekp(sb.bitarray_inode_start_address);
-    writeBitArray(fileStream,inodeArray);
+    fileStream.seekp(sb.bitarrayInodeAddress());
+    size_t bytes = sb.bitarrayInodeAddressBytes();
+    char* mem = createBitArray(bytes);
+    fileStream.write(mem,bytes);
+    delete mem;
     //data blocks bitArray
-    fileStream.seekp(sb.bitarray_data_block_start_address);
-    std::vector<bool> dataArray(sb.block_count);
-    dataArray[0] = true;
-    writeBitArray(fileStream,dataArray);
-
-
+    fileStream.seekp(sb.bitarrayDataBlockAddress());
+    bytes = sb.bitarrayDataBlockAddressBytes();
+    mem = createBitArray(bytes);
+    fileStream.write(mem,bytes);
+    delete mem;
     //inode section
-    fileStream.seekp(sb.inode_start_address);
-    char placeholder[sizeof(inode)]="";
-    std::memset(placeholder,'=',sizeof(placeholder)-1);
+    fileStream.seekp(sb.inodeAddress());
+    char placeholder[sizeof(inode)];
+    std::memset(placeholder,'=',sizeof(placeholder));
     placeholder[0] = '<';
-    placeholder[75] = 'p';
-    placeholder[sizeof(placeholder)-2] = '>';
-    for (size_t i = 0; i < sb.inode_count; i++)
+    char einode[7] = "einode";
+    std::memcpy(placeholder + sizeof(placeholder) / 2,einode,6);
+    placeholder[sizeof(placeholder) - 1] = '>';
+    for (size_t i = 0; i < sb.inodeCount; i++)
     {
         fileStream.write(placeholder,sizeof(placeholder));
     }
-
     //data section
-    fileStream.seekp(sb.data_start_address);
-    const size_t bsize = sb.block_size;
+    fileStream.seekp(sb.dataAddress());
+    const size_t bsize = sb.blockSize;
     char* placeholderd = new char[bsize];
-    std::memset(placeholderd,'d',bsize-1);
+    std::memset(placeholderd,'d',bsize);
     placeholderd[0] = '<';
-    placeholderd[bsize-2] = '>';
-    std::cout << placeholderd << std::endl;
-    for (size_t i = 0; i < sb.inode_count; i++)
+    placeholderd[bsize - 1] = '>';
+    for (size_t i = 0; i < sb.inodeCount; i++)
     {
         fileStream.write(placeholderd,bsize);
         
-    }
-    
-
-    
+    }    
     
     return true;
     
