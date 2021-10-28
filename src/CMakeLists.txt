@@ -1,4 +1,4 @@
-include_directories(${PROJECT_NAME} PUBLIC ../include/)
+include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_SOURCE_DIR}/include/)
 
 set(SOURCES_LIST superBlock.cpp fileSystem.cpp inode.cpp)
 
