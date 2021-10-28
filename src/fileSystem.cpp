@@ -64,7 +64,7 @@ bool fileSystem::format(){
         return false;
     }
     //superBlock
-    fileStream.write((char*)&sb,sizeof(superBlock));
+    fileStream.write(reinterpret_cast<char*>(&sb),sizeof(superBlock));
     //inode bitArray
     fileStream.seekp(sb.bitarrayInodeAddress());
     size_t bytes = sb.bitarrayInodeAddressBytes();
