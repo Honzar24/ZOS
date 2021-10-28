@@ -36,21 +36,18 @@ struct inode_poiters
 
 class inode
 {
-private:
-    size_type generateInodeID();
-
 public:
     //Unikatni identifikator idnodu
     size_type inode_id;
+    //file type
+    inode_types type;
     //Velikost souboru v Bajtech
     size_type fileSize;
-
+    //Pocet linku ukazujici na teto inode
     counter_type numHardLinks;
-
+    //data pointery
     inode_poiters pointers;
-
-    inode(std::any& data,size_type& dataSize);
-    inode();
-
-    
+public: 
+    inode(size_type inode_id,inode_types type,size_type fileSize);
+    inode();    
 };
