@@ -5,7 +5,7 @@
 #include "config.hpp"
 
 
-class dir_item
+class dirItem
 {
     public:
     //Nazev souboru/slozky
@@ -13,7 +13,7 @@ class dir_item
     //Prizazeny inode
     size_type inode_id;
 
-    inline dir_item(char nname[fileLiteralLenght],size_type& id):inode_id(id)
+    inline dirItem(char nname[fileLiteralLenght],size_type& id):inode_id(id)
     {
         memset(name,'\0',fileLiteralLenght);
         strncpy(name,nname,fileLiteralLenght - 1);                
