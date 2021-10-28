@@ -18,6 +18,8 @@
  * 
  * pokud i a b nejsou delitelne 8 tak jejich velikost je celociselne deleni + 1
  * 
+ * TODO: diskSize je velikost adresovatelneho prostoru pro soubory / velikost souboru
+ * TODO: zjistit zda je mozne vytvorit soubor mensi nez pozadovana velikost
  * padding je nepovinne pole slouzi pouze k dorovnani skutecne velikosti do pozadovane velikosti
  * 
  */

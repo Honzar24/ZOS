@@ -22,10 +22,12 @@ fileSystem::fileSystem(std::string& fileName, superBlock& sb):fileName(fileName)
 }
 fileSystem::fileSystem(std::string& fileName): fileName(fileName){
     fileStream.open(fileName,std::ios::out| std::ios::in | std::ios::binary);
-    if (!fileStream.is_open())
-    {
-        std::cerr << "WARN:File " << fileName << " can not be open by program. " << strerror(errno) << std::endl;
-    }   
+    #ifndef NDEBUG
+        if (!fileStream.is_open())
+        {
+            std::cerr << "WARN:File " << fileName << " can not be open by program. " << strerror(errno) << std::endl;
+        }
+    #endif   
 }
 fileSystem::~fileSystem(){
 }
@@ -75,31 +77,37 @@ bool fileSystem::format(){
     mem = createBitArray(bytes);
     fileStream.write(mem,bytes);
     delete[] mem;
-    //inode section
-    fileStream.seekp(sb.inodeAddress());
-    char placeholder[sizeof(inode)];
-    std::memset(placeholder,'=',sizeof(placeholder));
-    placeholder[0] = '<';
-    char einode[7] = "einode";
-    std::memcpy(placeholder + sizeof(placeholder) / 2,einode,6);
-    placeholder[sizeof(placeholder) - 1] = '>';
-    for (size_t i = 0; i < sb.inodeCount; i++)
-    {
-        fileStream.write(placeholder,sizeof(placeholder));
-    }
-    //data section
-    fileStream.seekp(sb.dataAddress());
-    const size_t bsize = sb.blockSize;
-    char* placeholderd = new char[bsize];
-    std::memset(placeholderd,'d',bsize);
-    placeholderd[0] = '<';
-    placeholderd[bsize - 1] = '>';
-    for (size_t i = 0; i < sb.inodeCount; i++)
-    {
-        fileStream.write(placeholderd,bsize);
-        
-    }
-    delete[] placeholderd;    
-    
+    #ifndef NDEBUG
+        //inode section
+        fileStream.seekp(sb.inodeAddress());
+        char placeholder[sizeof(inode)];
+        std::memset(placeholder,'=',sizeof(placeholder));
+        placeholder[0] = '<';
+        char text[] = " empty  inode ";
+        std::memcpy(placeholder + sizeof(placeholder) / 2 - (sizeof(text) - 1) / 2,text,sizeof(text) - 1);
+        placeholder[sizeof(placeholder) - 1] = '>';
+        for (size_t i = 0; i < sb.inodeCount; i++)
+        {
+            fileStream.write(placeholder,sizeof(placeholder));
+        }
+        //data section
+        fileStream.seekp(sb.dataAddress());
+        const size_t bsize = sb.blockSize;
+        char* placeholderd = new char[bsize];
+        std::memset(placeholderd,'d',bsize);
+        placeholderd[0] = '<';
+        placeholderd[bsize - 1] = '>';
+        for (size_t i = 0; i < sb.blockCount; i++)
+        {
+            fileStream.write(placeholderd,bsize);
+            
+        }
+        delete[] placeholderd;
+    #else
+        //zabrani vyuzitelne pameti
+        fileStream.seekp(sb.dataAddress() + sb.blockCount * sb.blockSize);
+        fileStream.write("",1);
+    #endif
+
     return true;
 }
