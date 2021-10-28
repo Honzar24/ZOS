@@ -18,6 +18,6 @@ int main(int argc, char const *argv[])
     }
     std::string fileName(argv[1]);
     fileSystem fs(fileName);
-    fs.format(104*1024);
+    fs.calcAndFormat(104*1024);
     return EXIT_SUCCESS;
 }

@@ -35,12 +35,15 @@ bool superBlock::setupFilePointers(){
     data_address = inode_address + inodeCount * sizeof(inode);
 
     size_t dSize = data_address + blockCount * blockSize;
+    if (diskSize == 0)
+    {
+        diskSize = dSize;
+        return true;
+    }
     if(dSize > diskSize)
     {
         std::cerr << "FATAL:Format failed to fit filesystem in given bounds" << std::endl << "Actual size:"<< dSize << " expected: " << diskSize << std::endl;
         return false;
     }
-
     return true;
-
 }

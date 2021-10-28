@@ -8,6 +8,17 @@
 #include <inode.hpp>
 
 fileSystem::fileSystem(std::string& fileName, superBlock& sb):fileName(fileName),sb(sb){
+    if (sb.diskSize == 0)
+    {
+        sb.setupFilePointers();
+        format();
+    }
+    else
+    {
+        calcAndFormat(sb.diskSize);
+    }
+    
+    
 }
 fileSystem::fileSystem(std::string& fileName): fileName(fileName){
     fileStream.open(fileName,std::ios::out| std::ios::in | std::ios::binary);
@@ -25,24 +36,24 @@ char* createBitArray(size_t bytes){
     return bitArray;
 }
 
-bool fileSystem::format(size_type size)
+bool fileSystem::calcAndFormat(size_type size)
 {
     sb.diskSize = size;
     // +2 protoze maximalne si pucim 2 Byty pro ByteArray
     assert(size > (sizeof(superBlock) + 2));     
-    size-= sizeof(superBlock) + 2;
-    if(sb.blockCount == 0 && sb.inodeCount == 0)
-    {   
-        sb.blockCount = size / ((1 + pomerDataInode)/8 + pomerDataInode * sizeof(inode) + sb.blockSize);
-        sb.inodeCount = pomerDataInode * sb.blockCount;
-        assert(sb.blockCount >= minDataBlockCount);
-        assert(sb.inodeCount >= minInodeCount);
-    }
+    size-= sizeof(superBlock) + 2;  
+    sb.blockCount = size / ((1 + pomerDataInode)/8 + pomerDataInode * sizeof(inode) + sb.blockSize);
+    sb.inodeCount = pomerDataInode * sb.blockCount;
+    assert(sb.blockCount >= minDataBlockCount);
+    assert(sb.inodeCount >= minInodeCount);
     if (!sb.setupFilePointers())
     {
         return false;
     }
+    return format();   
+}
 
+bool fileSystem::format(){
     fileStream.close();
     fileStream.open(fileName, std::ios::out | std::ios::in | std::ios::binary | std::ios::trunc);
     if (!fileStream.is_open())
@@ -57,13 +68,13 @@ bool fileSystem::format(size_type size)
     size_t bytes = sb.bitarrayInodeAddressBytes();
     char* mem = createBitArray(bytes);
     fileStream.write(mem,bytes);
-    delete mem;
+    delete[] mem;
     //data blocks bitArray
     fileStream.seekp(sb.bitarrayDataBlockAddress());
     bytes = sb.bitarrayDataBlockAddressBytes();
     mem = createBitArray(bytes);
     fileStream.write(mem,bytes);
-    delete mem;
+    delete[] mem;
     //inode section
     fileStream.seekp(sb.inodeAddress());
     char placeholder[sizeof(inode)];
@@ -87,8 +98,8 @@ bool fileSystem::format(size_type size)
     {
         fileStream.write(placeholderd,bsize);
         
-    }    
+    }
+    delete[] placeholderd;    
     
     return true;
-    
 }

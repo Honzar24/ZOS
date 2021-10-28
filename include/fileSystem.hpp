@@ -52,13 +52,27 @@ private:
     
 public:
 
-    
-    bool format(size_type size);
-    void format();
     bool makeDir(char dirName[fileLiteralLenght],size_type parentInnodeID);
+
     /**
-     * @brief naformatuje soubor podle pozadavku superbloku(disksize,<block size>,<block count>,<inode count>)
-     * prarametry v <> jsou nepovinne ale lze je nastavit
+     * @brief Propocita "nejlepsi" pocet data bloku pro velikost data bloku a pocet inodu podle pomeru viz. config
+     * 
+     * @param size velikost vysledneho file systemu
+     * @return true vse vporadku system byl naformatovan
+     * @return false takovy file system nelze setrojit
+     */
+    bool calcAndFormat(size_type size);
+    /**
+     * @brief podle nastaveni v superbloku naformatuje soubor
+     * 
+     * @return true OK
+     * @return false Soubor nelze otevrit/cist/zapisovat
+     */
+    bool format();
+    /**
+     * @brief naformatuje soubor podle pozadavku superbloku lze zadat podpis a popis
+     *  A) je zadana pozadovana velikost disku diskSize != 0 nastaveni ostatnich parametru viz, config
+     *  B) jsou zadany pozadovane pocty data bloku a inodu a popripade jeste velikost data bloku ale to je nepoviny udaj viz. config
      * 
      * @param fileName 
      * @param sb 
