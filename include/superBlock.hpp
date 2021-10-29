@@ -43,12 +43,12 @@ private:
 public:
 
     superBlock(const char[maxSignatureLenght], const char[maxDescriptionLenght], size_type diskSize, size_type blockSize, size_type inodeCount, size_type blockCount);
-    inline superBlock(const char sig[maxSignatureLenght], const char desc[maxDescriptionLenght], size_type blockSize, size_type inodeCount, size_type blockCount):superBlock(sig,desc,0,blockSize,inodeCount,blockCount){};
+    inline superBlock(const char sig[maxSignatureLenght], const char desc[maxDescriptionLenght], size_type blockSize, size_type inodeCount, size_type blockCount) :superBlock(sig, desc, 0, blockSize, inodeCount, blockCount) {};
     inline superBlock(size_type diskSize, size_type blockSize) : superBlock(defaulSignature, defaulDescription, diskSize, blockSize, defaultInodeCount, defaultBlockCount) {};
     inline superBlock(size_type diskSize) : superBlock(diskSize, defaultBlockSize) {};
     /**
      * @brief Vytvori superBlock s parametry 0 az na block size ktery je nastaven na zakladni hodnotu viz config
-     * 
+     *
      */
     superBlock();
 
@@ -76,6 +76,9 @@ public:
     {
         return inode_address - bitarray_data_block_address;
     }
-
+    inline size_t getBlockConnt(size_type requiredSize)
+    {
+        return requiredSize % blockSize != 0 ? requiredSize / blockSize : requiredSize / 8 + 1;
+    };
     bool setupFilePointers();
 };
