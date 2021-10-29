@@ -1,7 +1,9 @@
 #pragma once
 
+#include <cmath>
 #include <cstdlib>
 #include <cstring>
+
 #include <fstream>
 #include <bitset>
 
@@ -14,16 +16,21 @@ private:
     // prave zpracovavany
     size_t byte;
     size_t bit = 0;
+    //
+    const size_t maxByte;
+    const size_t maxbit;
     // pocatek v souboru
     int start;
 
 public:
-    fileBitIterator(int start, size_t Byte, size_t bit) :
+    fileBitIterator(int start, size_t Byte, size_t bit, size_t maxByte, size_t maxbit) :
         start(start),
         byte(Byte),
-        bit(bit)
+        bit(bit),
+        maxByte(maxByte),
+        maxbit(maxbit)
     {};
-    fileBitIterator() : fileBitIterator(0, 0, 0) {};
+    fileBitIterator() : fileBitIterator(0, 0, 0, 0, 0) {};
 
     inline fileBitIterator& operator+=(size_t adv)
     {
@@ -33,6 +40,16 @@ public:
         {
             bit %= 8;
             byte++;
+        }
+        if (byte > maxByte)
+        {
+            byte = std::min(maxByte, byte);
+            bit += adv;
+            if (maxbit < bit)
+            {
+                bit = std::min(maxbit, bit);
+            }
+
         }
         return *this;
     }
@@ -118,10 +135,11 @@ public:
         currentByte.flip();
         fileStream.seekp(start + byte - 1);
         fileStream.write(reinterpret_cast<char*>(&currentByte), 1);
+        fileStream.flush();
     }
     inline size_t cByte()
     {
-        return byte -1;
+        return byte - 1;
     }
     inline size_t cbit()
     {
@@ -155,32 +173,18 @@ private:
 
 public:
     using Iterator = fileBitIterator;
-    fileBitArray(){};
+    fileBitArray() {};
     fileBitArray(int start, size_t bitSize) :
         bitSize(bitSize),
         byteSize(bitSize / 8 + 1),
         start(start)
     {};
-
-    inline fileBitArray& setStart(const int& nstart){
-        start = nstart;
-        return *this;
-    };
-
     inline Iterator begin()
     {
-        return Iterator(start, 1, 0);
+        return Iterator(start, 1, 0, byteSize, bitSize % 8);
     };
     inline Iterator end()
     {
-        return Iterator(start, byteSize, bitSize % 8);
-    };
-    inline void clear(std::fstream& fileStream)
-    {
-        char* zero = new char[byteSize];
-        std::memset(zero,'\0',byteSize);
-        fileStream.seekp(0).write(zero,byteSize);
-        delete[] zero;
-        fileStream.seekp(0);
+        return Iterator(start, byteSize, bitSize % 8, byteSize, bitSize % 8);
     };
 };
