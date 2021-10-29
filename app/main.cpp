@@ -19,7 +19,7 @@ int main(int argc, char const* argv[])
     std::string fileName(argv[1]);
     fileSystem fs(fileName);
     // zarovani sekci do 16 bloku
-    // fs.calcAndFormat(104*1024);
-    fs.calcAndFormat(104 * 1024);
+    // fs.calcAndFormat(103*1024);
+    fs.calcAndFormat(103 * 1024);
     return EXIT_SUCCESS;
 }

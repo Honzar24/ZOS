@@ -29,42 +29,42 @@ fileSystem::fileSystem(std::string& fileName) : fileName(fileName), fileStream(f
     }
 #endif  
 }
-void addDataPointer(inode& inode,pointer_type pointer)
+void addDataPointer(inode& inode, pointer_type pointer)
 {
-   for (size_t index = 0; index < directPointersCount; index++)
-   {
-       if (inode.pointers.direct[index] == 0)
-       {
-           inode.pointers.direct[index] = pointer;
-           return;
-       }
-       
-   } 
-   assert(false);  
-    
+    for (size_t index = 0; index < directPointersCount; index++)
+    {
+        if (inode.pointers.direct[index] == 0)
+        {
+            inode.pointers.direct[index] = pointer;
+            return;
+        }
+
+    }
+    assert(false);
+
 }
 
 void fileSystem::createRoot()
-{   
+{
     auto root = alocateNewInode();
     root.type = inode::dir;
     dirItem dirItems[2];
-    dirItems[0] = dirItem("..",root.id);
-    dirItems[1] = dirItem(".",root.id);
+    dirItems[0] = dirItem("..", root.id);
+    dirItems[1] = dirItem(".", root.id);
     root.fileSize += 2 * sizeof(dirItem);
     size_t blockCount = root.fileSize % sb.blockSize == 0 ? root.fileSize / sb.blockCount : root.fileSize / sb.blockCount + 1;
     std::vector<pointer_type> pointers;
-    assert(alocateDataBlocks(blockCount,pointers) == blockCount);
+    assert(alocateDataBlocks(blockCount, pointers) == blockCount);
     root.pointers.direct[0] = pointers[0];
     fileStream.seekp(sb.inodeAddress() + root.id * sizeof(inode));
-    fileStream.write(reinterpret_cast<char*>(&root),sizeof(root));
+    fileStream.write(reinterpret_cast<char*>(&root), sizeof(root));
     fileStream.seekp(root.pointers.direct[0]);
-    fileStream.write(reinterpret_cast<char*>(dirItems),sizeof(dirItems));
+    fileStream.write(reinterpret_cast<char*>(dirItems), sizeof(dirItems));
 }
 
 errorCode fileSystem::makeDir(char dirName[fileLiteralLenght], size_type parentInnodeID)
 {
-    
+
     return errorCode::OK;
 }
 
@@ -73,17 +73,18 @@ inode fileSystem::alocateNewInode()
     size_t id = 0;
     for (auto it = inodeBitArray.begin();it != inodeBitArray.end();it++)
     {
-        if(it.getVal(fileStream) == false)
+        if (it.getVal(fileStream) == false)
         {
             it.flip(fileStream);
             break;
         }
         id++;
     }
-    return inode(id <= sb.inodeCount ? id : 0);    
+    return inode(id <= sb.inodeCount ? id : 0);
 }
 
-size_t fileSystem::alocateDataBlocks(size_t numberOfDataBlocks,std::vector<pointer_type>& pointers){
+size_t fileSystem::alocateDataBlocks(size_t numberOfDataBlocks, std::vector<pointer_type>& pointers)
+{
     std::vector<size_type> blockID;
     auto it = dataBlockBitArray.begin();
     size_type index = 0;
@@ -93,21 +94,21 @@ size_t fileSystem::alocateDataBlocks(size_t numberOfDataBlocks,std::vector<point
         {
             blockID.push_back(index);
             numberOfDataBlocks--;
-        }  
+        }
         index++;
-        it++;      
+        it++;
     }
     if (numberOfDataBlocks > 0)
     {
         return 0;
     }
-    for (size_t index:blockID)
+    for (size_t index : blockID)
     {
         pointers.push_back(sb.dataAddress() + index * sb.blockSize);
         (dataBlockBitArray.begin() += index).flip(fileStream);
 
     }
-    return blockID.size();    
+    return blockID.size();
 }
 
 void fileSystem::freeInode(size_type inodeId)
