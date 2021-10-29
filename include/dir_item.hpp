@@ -7,15 +7,15 @@
 
 class dirItem
 {
-    public:
+public:
     //Nazev souboru/slozky
     char name[fileLiteralLenght];
     //Prizazeny inode
     size_type inode_id;
 
-    inline dirItem(char nname[fileLiteralLenght],size_type& id):inode_id(id)
+    inline dirItem(char nname[fileLiteralLenght], size_type& id) :inode_id(id)
     {
-        memset(name,'\0',fileLiteralLenght);
-        strncpy(name,nname,fileLiteralLenght - 1);                
+        memset(name, '\0', fileLiteralLenght);
+        strncpy(name, nname, fileLiteralLenght - 1);
     }
 };

@@ -32,12 +32,12 @@ struct inode_poiters
 class inode
 {
 public:
-    enum inode_types: counter_type{
-    nodef=0,
-    file,
-    dir,
+    enum inode_types : counter_type {
+        nodef = 0,
+        file,
+        dir,
     };
-    
+
     //Unikatni identifikator idnodu
     size_type id;
     //file type
@@ -48,7 +48,7 @@ public:
     counter_type numHardLinks;
     //data pointery
     inode_poiters pointers;
-public: 
-    inode(size_type inode_id,inode_types type,size_type fileSize);
-    inline inode():inode(0,nodef,0){};    
+public:
+    inode(size_type inode_id, inode_types type, size_type fileSize);
+    inline inode() :inode(0, nodef, 0) {};
 };

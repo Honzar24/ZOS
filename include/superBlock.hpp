@@ -8,7 +8,7 @@
 
 class superBlock
 {
-    public:
+public:
     //login autora FS
     char signature[maxSignatureLenght + 1];
 
@@ -27,7 +27,7 @@ class superBlock
     //pocet inodu
     size_type inodeCount;
 
-    private:
+private:
     //adresa pocatku bitarray i-uzlu
     pointer_type bitarray_inode_address;
 
@@ -40,29 +40,40 @@ class superBlock
     //adresa pocatku datovych bloku   
     pointer_type data_address;
 
-    public:
+public:
 
-    superBlock(const char[maxSignatureLenght],const char[maxDescriptionLenght],size_type diskSize,size_type blockSize,size_type inodeCount,size_type blockCount);
-    superBlock(size_type diskSize,size_type blockSize);
-    superBlock(size_type diskSize);
+    superBlock(const char[maxSignatureLenght], const char[maxDescriptionLenght], size_type diskSize, size_type blockSize, size_type inodeCount, size_type blockCount);
+    inline superBlock(const char sig[maxSignatureLenght], const char desc[maxDescriptionLenght], size_type blockSize, size_type inodeCount, size_type blockCount):superBlock(sig,desc,0,blockSize,inodeCount,blockCount){};
+    inline superBlock(size_type diskSize, size_type blockSize) : superBlock(defaulSignature, defaulDescription, diskSize, blockSize, defaultInodeCount, defaultBlockCount) {};
+    inline superBlock(size_type diskSize) : superBlock(diskSize, defaultBlockSize) {};
+    /**
+     * @brief Vytvori superBlock s parametry 0 az na block size ktery je nastaven na zakladni hodnotu viz config
+     * 
+     */
     superBlock();
 
-    inline pointer_type bitarrayInodeAddress(){
+    inline pointer_type bitArrayInodeAddress()
+    {
         return bitarray_inode_address;
     }
-    inline pointer_type bitarrayDataBlockAddress(){
+    inline pointer_type bitArrayDataBlockAddress()
+    {
         return bitarray_data_block_address;
     }
-    inline pointer_type inodeAddress(){
+    inline pointer_type inodeAddress()
+    {
         return inode_address;
     }
-    inline pointer_type dataAddress(){
+    inline pointer_type dataAddress()
+    {
         return data_address;
     }
-    inline size_t bitarrayInodeAddressBytes(){
+    inline size_t bitarrayInodeAddressBytes()
+    {
         return bitarray_data_block_address - bitarray_inode_address;
     }
-    inline size_t bitarrayDataBlockAddressBytes(){
+    inline size_t bitarrayDataBlockAddressBytes()
+    {
         return inode_address - bitarray_data_block_address;
     }
 
