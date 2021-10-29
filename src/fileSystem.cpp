@@ -1,13 +1,13 @@
 #include <cstdlib>
 #include <cstdint>
-#include <iostream>
 #include <cstring>
-#include <vector>
 
 #include <fileSystem.hpp>
-#include <inode.hpp>
+#include <dir_item.hpp>
 
-fileSystem::fileSystem(std::string& fileName, superBlock& sb) : fileName(fileName), sb(sb)
+using errorCode = fileSystem::errorCode;
+
+fileSystem::fileSystem(std::string& fileName, superBlock& sb) : fileName(fileName), sb(sb), fileStream(fileName)
 {
     if (sb.diskSize == 0)
     {
@@ -17,28 +17,105 @@ fileSystem::fileSystem(std::string& fileName, superBlock& sb) : fileName(fileNam
     {
         calcAndFormat(sb.diskSize);
     }
+    inodeBitArray = fileBitArray(sb.bitArrayInodeAddress(), sb.inodeCount);
+    dataBlockBitArray = fileBitArray(sb.bitArrayDataBlockAddress(), sb.blockCount);
 }
-fileSystem::fileSystem(std::string& fileName) : fileName(fileName)
+fileSystem::fileSystem(std::string& fileName) : fileName(fileName), fileStream(fileName, std::ios::out | std::ios::in | std::ios::binary)
 {
-    fileStream.open(fileName, std::ios::out | std::ios::in | std::ios::binary);
 #ifndef NDEBUG
     if (!fileStream.is_open())
     {
         std::cerr << "WARN:File " << fileName << " can not be open by program. " << strerror(errno) << std::endl;
     }
-#endif
+#endif  
 }
-fileSystem::~fileSystem()
-{}
-
-char* createBitArray(size_t bytes)
+void addDataPointer(inode& inode,pointer_type pointer)
 {
-    char* bitArray = new char[bytes];
-    std::memset(bitArray, 0, bytes);
-    return bitArray;
+   for (size_t index = 0; index < directPointersCount; index++)
+   {
+       if (inode.pointers.direct[index] == 0)
+       {
+           inode.pointers.direct[index] = pointer;
+           return;
+       }
+       
+   } 
+   assert(false);  
+    
 }
 
-bool fileSystem::calcAndFormat(size_type size)
+void fileSystem::createRoot()
+{   
+    auto root = alocateNewInode();
+    root.type = inode::dir;
+    dirItem dirItems[2];
+    dirItems[0] = dirItem("..",root.id);
+    dirItems[1] = dirItem(".",root.id);
+    root.fileSize += 2 * sizeof(dirItem);
+    size_t blockCount = root.fileSize % sb.blockSize == 0 ? root.fileSize / sb.blockCount : root.fileSize / sb.blockCount + 1;
+    std::vector<pointer_type> pointers;
+    assert(alocateDataBlocks(blockCount,pointers) == blockCount);
+    root.pointers.direct[0] = pointers[0];
+    fileStream.seekp(sb.inodeAddress() + root.id * sizeof(inode));
+    fileStream.write(reinterpret_cast<char*>(&root),sizeof(root));
+    fileStream.seekp(root.pointers.direct[0]);
+    fileStream.write(reinterpret_cast<char*>(dirItems),sizeof(dirItems));
+}
+
+errorCode fileSystem::makeDir(char dirName[fileLiteralLenght], size_type parentInnodeID)
+{
+    
+    return errorCode::OK;
+}
+
+inode fileSystem::alocateNewInode()
+{
+    size_t id = 0;
+    for (auto it = inodeBitArray.begin();it != inodeBitArray.end();it++)
+    {
+        if(it.getVal(fileStream) == false)
+        {
+            it.flip(fileStream);
+            break;
+        }
+        id++;
+    }
+    return inode(id <= sb.inodeCount ? id : 0);    
+}
+
+size_t fileSystem::alocateDataBlocks(size_t numberOfDataBlocks,std::vector<pointer_type>& pointers){
+    std::vector<size_type> blockID;
+    auto it = dataBlockBitArray.begin();
+    size_type index = 0;
+    while (it != dataBlockBitArray.end() && numberOfDataBlocks > 0)
+    {
+        if (it.getVal(fileStream) == false)
+        {
+            blockID.push_back(index);
+            numberOfDataBlocks--;
+        }  
+        index++;
+        it++;      
+    }
+    if (numberOfDataBlocks > 0)
+    {
+        return 0;
+    }
+    for (size_t index:blockID)
+    {
+        pointers.push_back(sb.dataAddress() + index * sb.blockSize);
+        (dataBlockBitArray.begin() += index).flip(fileStream);
+
+    }
+    return blockID.size();    
+}
+
+void fileSystem::freeInode(size_type inodeId)
+{
+
+}
+
+errorCode fileSystem::calcAndFormat(size_type size)
 {
     sb.diskSize = size;
     // +2 protoze maximalne si pucim 2 Byty pro ByteArray
@@ -50,34 +127,29 @@ bool fileSystem::calcAndFormat(size_type size)
     assert(sb.inodeCount >= minInodeCount);
     if (!sb.setupFilePointers())
     {
-        return false;
+        return errorCode::CAN_NOT_CREATE_SUPERBLOCK;
     }
     return format();
 }
 
-bool fileSystem::format()
+errorCode fileSystem::format()
 {
     fileStream.close();
     fileStream.open(fileName, std::ios::out | std::ios::in | std::ios::binary | std::ios::trunc);
     if (!fileStream.is_open())
     {
+    #ifndef NDEBUG
         std::cerr << "FATAL:File " << fileName << " can not be create by program. " << strerror(errno) << std::endl;
-        return false;
+    #endif
+        return errorCode::CANNOT_CREATE_FILE;
     }
     // superBlock
     fileStream.write(reinterpret_cast<char*>(&sb), sizeof(superBlock));
     // inode bitArray
-    fileStream.seekp(sb.bitArrayInodeAddress());
-    size_t bytes = sb.bitarrayInodeAddressBytes();
-    char* mem = createBitArray(bytes);
-    fileStream.write(mem, bytes);
-    delete[] mem;
-    // data blocks bitArray
-    fileStream.seekp(sb.bitArrayDataBlockAddress());
-    bytes = sb.bitarrayDataBlockAddressBytes();
-    mem = createBitArray(bytes);
-    fileStream.write(mem, bytes);
-    delete[] mem;
+    inodeBitArray = fileBitArray(sb.bitArrayInodeAddress(), sb.inodeCount);
+    // data blocks bitArray    
+    dataBlockBitArray = fileBitArray(sb.bitArrayDataBlockAddress(), sb.blockCount);
+
 #ifndef NDEBUG
     // inode section
     fileStream.seekp(sb.inodeAddress());
@@ -108,6 +180,7 @@ bool fileSystem::format()
     fileStream.seekp(sb.dataAddress() + sb.blockCount * sb.blockSize);
     fileStream.write("", 1);
 #endif
+    createRoot();
 
-    return true;
+    return errorCode::OK;
 }

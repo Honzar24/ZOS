@@ -2,10 +2,11 @@
 
 #include <fstream>
 #include <iostream>
-#include <sstream>
-#include <bitset>
+#include <vector>
 
 #include "superBlock.hpp"
+#include "fileBitArray.hpp"
+#include "inode.hpp"
 
 /**
  * i - pocet inodu
@@ -25,51 +26,70 @@
 
 class fileSystem
 {
+public:
+    enum class errorCode:int8_t {
+        UNKNOW = -1,
+        OK,
+        CANNOT_CREATE_FILE,
+        FILE_NOT_FOUND,
+        PATH_NOT_FOUND,
+        NOT_EMPTY,
+        EXIST,
+        CAN_NOT_CREATE_SUPERBLOCK,
+
+
+    };
 private:
     std::string fileName;
     std::fstream fileStream;
     superBlock sb;
-    /**
-     * @brief
-     *
-     * @param bitArray
-     * @return std::pair<pointer_type,size_t> pozice kurzoru ve istreamu a hodnota <0;8> urcujici pozici volneho bitu v Bytu
-     *  pokud pozice je 0 bitArray nema volny bit
-     */
-    std::pair<pointer_type, size_t> findFeeBit(pointer_type& bitArray);
+    fileBitArray inodeBitArray;
+    fileBitArray dataBlockBitArray;
+    void createRoot();
     /**
      * @brief zabrani prvni volne inody na disku
-     *
-     * @return size_type inodeId nove inody 0 znamena ze alokace selhala
      */
-    size_type alocateNewInode();
+    inode alocateNewInode();
     /**
      * @brief nastaveni bitu o existenci inodu na 0
      *
      * @param inodeId inodeId
      */
     void freeInode(size_type inodeId);
+    /**
+     * @brief pokusi se zabrat pozadovany pocet bloku a vrati jejich id
+     * 
+     * @param numberOfDataBlocks pocet pozadovanych bloku
+     */
+    size_t alocateDataBlocks(size_t numberOfDataBlocks,std::vector<pointer_type>& vector);
 
 public:
-    bool makeDir(char dirName[fileLiteralLenght], size_type parentInnodeID);
+    /**
+     * @brief Zalozeni adresare pod parentInnodeID
+     *
+     * @param dirName
+     * @param parentInnodeID
+     * @return errorCode OK|EXIST|PATH NOT FOUND
+     */
+    errorCode makeDir(char dirName[fileLiteralLenght], size_type parentInnodeID);
 
     /**
      * @brief Propocita "nejlepsi" pocet data bloku pro velikost data bloku a pocet inodu podle pomeru viz. config
+     * ze superBloku se vyuzije pouze block size zbyle parametry se dopocitaji nebo doplni z configu
      *
      * @param size velikost vysledneho file systemu
      * @return true vse vporadku system byl naformatovan
-     * @return false takovy file system nelze setrojit
+     * @return false takovy file system nelze setrojit nebo zapsat
      */
-    bool calcAndFormat(size_type size);
+    errorCode calcAndFormat(size_type size);
     /**
      * @brief podle nastaveni v superbloku naformatuje soubor
-     *
-     * @return true OK
-     * @return false Soubor nelze otevrit/cist/zapisovat
+     * 
+     * @return errorCode 
      */
-    bool format();
+    errorCode format();
     /**
-     * @brief naformatuje soubor podle pozadavku superbloku lze zadat podpis a popis
+     * @brief naformatuje soubor podle pozadavku superbloku
      *  A) je zadana pozadovana velikost disku diskSize != 0 nastaveni ostatnich parametru viz, config
      *  B) jsou zadany pozadovane pocty data bloku a inodu a popripade jeste velikost data bloku ale to je nepoviny udaj viz. config
      *
@@ -83,5 +103,5 @@ public:
      * @param fileName jmeno souboru filesystemu
      */
     fileSystem(std::string& fileName);
-    ~fileSystem();
+    ~fileSystem() = default;
 };
