@@ -6,13 +6,14 @@
 
 // types
 /// typ vyuzivany cisla
-typedef u_int64_t size_type;
+using size_type = u_int64_t;
 /// typ vyuzivany ukazateli
-typedef u_int64_t pointer_type;
+using pointer_type = u_int64_t;
 /// typ pro mala cisla
-typedef u_int8_t counter_type;
+using counter_type = u_int8_t;
 
 // structures
+constexpr const size_t directPointersCount = 12;
 
 // superBlock
 constexpr const size_t maxSignatureLenght = 10;
