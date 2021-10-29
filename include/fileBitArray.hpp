@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdlib>
+#include <cstring>
 #include <fstream>
 #include <bitset>
 
@@ -15,17 +16,16 @@ private:
     size_t bit = 0;
     // pocatek v souboru
     int start;
-    std::fstream& fileStream;
 
 public:
-    fileBitIterator(std::fstream& fs, int start, size_t Byte, size_t bit) : fileStream(fs),
+    fileBitIterator(int start, size_t Byte, size_t bit) :
         start(start),
         byte(Byte),
         bit(bit)
     {};
-    fileBitIterator(std::fstream& fs) : fileBitIterator(fs, fs.tellg(), 0, 0) {};
+    fileBitIterator() : fileBitIterator(0, 0, 0) {};
 
-    inline fileBitIterator& operator+=(const size_t adv)
+    inline fileBitIterator& operator+=(size_t adv)
     {
         byte += adv / 8;
         bit += adv % 8;
@@ -34,6 +34,7 @@ public:
             bit %= 8;
             byte++;
         }
+        return *this;
     }
     inline fileBitIterator& operator++()
     {
@@ -46,13 +47,24 @@ public:
     }
     inline fileBitIterator& operator++(int)
     {
-        auto ret = *this;
+        auto ret = this;
         if (++bit == 8)
         {
             byte++;
             bit = 0;
         }
-        return ret;
+        return *ret;
+    }
+    inline fileBitIterator& operator-=(size_t dec)
+    {
+        byte -= dec / 8;
+        bit -= dec % 8;
+        if (bit < 0)
+        {
+            bit %= 8;
+            byte--;
+        }
+        return *this;
     }
     inline fileBitIterator& operator--()
     {
@@ -65,23 +77,31 @@ public:
     }
     inline fileBitIterator& operator--(int)
     {
-        auto ret = *this;
+        auto ret = this;
         if (--bit == -1)
         {
             byte--;
             bit = 7;
         }
-        return ret;
+        return *ret;
     }
-    inline void sflip()
+    inline void sflip(std::fstream& fileStream)
     {
         auto currpos = fileStream.tellg();
         auto curwpos = fileStream.tellp();
-        flip();
+        flip(fileStream);
         fileStream.seekg(currpos);
         fileStream.seekp(curwpos);
     }
-    inline void flip()
+    inline void sflipByte(std::fstream& fileStream)
+    {
+        auto currpos = fileStream.tellg();
+        auto curwpos = fileStream.tellp();
+        flipByte(fileStream);
+        fileStream.seekg(currpos);
+        fileStream.seekp(curwpos);
+    }
+    inline void flip(std::fstream& fileStream)
     {
         fileStream.seekg(start + byte - 1);
         std::bitset<8> currentByte;
@@ -90,23 +110,30 @@ public:
         fileStream.seekp(start + byte - 1);
         fileStream.write(reinterpret_cast<char*>(&currentByte), 1);
     }
-    inline ValueType operator*()
+    inline void flipByte(std::fstream& fileStream)
+    {
+        fileStream.seekg(start + byte - 1);
+        std::bitset<8> currentByte;
+        fileStream.read(reinterpret_cast<char*>(&currentByte), 1);
+        currentByte.flip();
+        fileStream.seekp(start + byte - 1);
+        fileStream.write(reinterpret_cast<char*>(&currentByte), 1);
+    }
+    inline size_t cByte()
+    {
+        return byte -1;
+    }
+    inline size_t cbit()
+    {
+        return bit;
+    }
+    inline ValueType getVal(std::fstream& fileStream)
     {
         auto curpos = fileStream.tellg();
         fileStream.seekg(start + byte - 1);
         std::bitset<8> cByte;
         fileStream.read(reinterpret_cast<char*>(&cByte), 1);
         bool ret = cByte[bit];
-        fileStream.seekg(curpos);
-        return ret;
-    }
-    inline ValueType operator[](size_t index)
-    {
-        auto curpos = fileStream.tellg();
-        fileStream.seekg(start + index / 8);
-        std::bitset<8> cByte;
-        fileStream.read(reinterpret_cast<char*>(&cByte), 1);
-        bool ret = cByte[index % 8];
         fileStream.seekg(curpos);
         return ret;
     }
@@ -119,31 +146,41 @@ public:
         return !(*this == o);
     }
 };
-
 class fileBitArray
 {
 private:
-    std::fstream& fileStream;
     int start;
     size_t bitSize;
     size_t byteSize;
 
 public:
     using Iterator = fileBitIterator;
-
-    fileBitArray() = delete;
-    fileBitArray(std::fstream& fs, size_t bitSize) : fileStream(fs),
+    fileBitArray(){};
+    fileBitArray(int start, size_t bitSize) :
         bitSize(bitSize),
         byteSize(bitSize / 8 + 1),
-        start(fs.tellg())
+        start(start)
     {};
 
-    inline const Iterator begin()
-    {
-        return Iterator(fileStream, start, 1, 0);
+    inline fileBitArray& setStart(const int& nstart){
+        start = nstart;
+        return *this;
     };
-    inline const Iterator end()
+
+    inline Iterator begin()
     {
-        return Iterator(fileStream, start, byteSize, bitSize % 8);
+        return Iterator(start, 1, 0);
+    };
+    inline Iterator end()
+    {
+        return Iterator(start, byteSize, bitSize % 8);
+    };
+    inline void clear(std::fstream& fileStream)
+    {
+        char* zero = new char[byteSize];
+        std::memset(zero,'\0',byteSize);
+        fileStream.seekp(0).write(zero,byteSize);
+        delete[] zero;
+        fileStream.seekp(0);
     };
 };
