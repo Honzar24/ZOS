@@ -83,6 +83,11 @@ inode fileSystem::alocateNewInode()
     return inode(id <= sb.inodeCount ? id : 0);
 }
 
+void fileSystem::freeInode(size_type inodeId)
+{
+    (inodeBitArray.begin()+=inodeId).flip(fileStream);
+}
+
 size_t fileSystem::alocateDataBlocks(size_t numberOfDataBlocks, std::vector<pointer_type>& pointers)
 {
     std::vector<size_type> blockID;
@@ -109,11 +114,6 @@ size_t fileSystem::alocateDataBlocks(size_t numberOfDataBlocks, std::vector<poin
 
     }
     return blockID.size();
-}
-
-void fileSystem::freeInode(size_type inodeId)
-{
-
 }
 
 errorCode fileSystem::calcAndFormat(size_type size)
