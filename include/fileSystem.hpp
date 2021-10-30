@@ -24,10 +24,12 @@
  *
  */
 
+
+
 class fileSystem
 {
 public:
-    enum class errorCode:int8_t {
+    enum class errorCode :int8_t {
         UNKNOW = -1,
         OK,
         CANNOT_CREATE_FILE,
@@ -36,9 +38,9 @@ public:
         NOT_EMPTY,
         EXIST,
         CAN_NOT_CREATE_SUPERBLOCK,
-
-
+        INODE_POOL_FULL
     };
+
 private:
     std::string fileName;
     std::fstream fileStream;
@@ -57,11 +59,18 @@ private:
      */
     void freeInode(size_type inodeId);
     /**
+     * @brief zabere jeden datablock
+     *
+     * @return pointer_type
+     */
+    pointer_type alocateDataBlock();
+    /**
      * @brief pokusi se zabrat pozadovany pocet bloku a vrati jejich id
-     * 
+     *
      * @param numberOfDataBlocks pocet pozadovanych bloku
      */
-    size_t alocateDataBlocks(size_t numberOfDataBlocks,std::vector<pointer_type>& vector);
+    size_t alocateDataBlocks(size_t numberOfDataBlocks, std::vector<pointer_type>& vector);
+    void getDataPointers(inode inode, std::vector<pointer_type>& pointers);
 
 public:
     /**
@@ -71,7 +80,7 @@ public:
      * @param parentInnodeID
      * @return errorCode OK|EXIST|PATH NOT FOUND
      */
-    errorCode makeDir(char dirName[fileLiteralLenght], size_type parentInnodeID);
+    errorCode makeDir(const char dirName[fileLiteralLenght], size_type parentInnodeID);
 
     /**
      * @brief Propocita "nejlepsi" pocet data bloku pro velikost data bloku a pocet inodu podle pomeru viz. config
@@ -84,8 +93,8 @@ public:
     errorCode calcAndFormat(size_type size);
     /**
      * @brief podle nastaveni v superbloku naformatuje soubor
-     * 
-     * @return errorCode 
+     *
+     * @return errorCode
      */
     errorCode format();
     /**
@@ -104,4 +113,40 @@ public:
      */
     fileSystem(std::string& fileName);
     ~fileSystem() = default;
+};
+using errorCode = fileSystem::errorCode;
+inline std::ostream& operator<<(std::ostream& os, errorCode& errorCode)
+{
+    switch (errorCode)
+    {
+    case errorCode::OK:
+        os << "OK";
+        break;
+    case errorCode::CANNOT_CREATE_FILE:
+        os << "CANNOT CREATE FILE";
+        break;
+    case errorCode::FILE_NOT_FOUND:
+        os << "FILE NOT FOUND";
+        break;
+    case errorCode::PATH_NOT_FOUND:
+        os << "PATH NOT FOUND";
+        break;
+    case errorCode::NOT_EMPTY:
+        os << "NOT EMPTY";
+        break;
+    case errorCode::EXIST:
+        os << "EXIST";
+        break;
+    case errorCode::CAN_NOT_CREATE_SUPERBLOCK:
+        os << "CAN NOT CREATE SUPERBLOCK";
+        break;
+    case errorCode::INODE_POOL_FULL:
+        os << "INODE POOL FULL";
+        break;
+    case errorCode::UNKNOW:
+    default:
+        os << "UNKNOW";
+        break;
+    }
+    return os;
 };

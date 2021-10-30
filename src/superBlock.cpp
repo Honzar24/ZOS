@@ -2,9 +2,11 @@
 #include <cmath>
 #include <cassert>
 #include <iostream>
+#include <cassert>
 
 #include <superBlock.hpp>
 #include <inode.hpp>
+#include <dir_item.hpp>
 
 
 superBlock::superBlock(const char sig[maxSignatureLenght], const char desc[maxDescriptionLenght], size_type diskSize, size_type blockSize, size_type inodeCount, size_type blockCount) :
@@ -15,6 +17,7 @@ superBlock::superBlock(const char sig[maxSignatureLenght], const char desc[maxDe
     std::strncpy(description, desc, maxDescriptionLenght);
     description[maxDescriptionLenght] = '\0';
     setupFilePointers();
+    assert(blockSize >= sizeof(dirItem) * 2);
 
 }
 superBlock::superBlock()

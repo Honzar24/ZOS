@@ -5,7 +5,6 @@
 #include <fileSystem.hpp>
 #include <dir_item.hpp>
 
-using errorCode = fileSystem::errorCode;
 
 fileSystem::fileSystem(std::string& fileName, superBlock& sb) : fileName(fileName), sb(sb), fileStream(fileName)
 {
@@ -27,7 +26,8 @@ fileSystem::fileSystem(std::string& fileName) : fileName(fileName), fileStream(f
     {
         std::cerr << "WARN:File " << fileName << " can not be open by program. " << strerror(errno) << std::endl;
     }
-#endif  
+#endif
+    fileStream.seekg(0).read(reinterpret_cast<char*>(&sb), sizeof(superBlock));
 }
 void addDataPointer(inode& inode, pointer_type pointer)
 {
@@ -52,20 +52,84 @@ void fileSystem::createRoot()
     dirItems[0] = dirItem("..", root.id);
     dirItems[1] = dirItem(".", root.id);
     root.fileSize += 2 * sizeof(dirItem);
-    size_t blockCount = root.fileSize % sb.blockSize == 0 ? root.fileSize / sb.blockCount : root.fileSize / sb.blockCount + 1;
-    std::vector<pointer_type> pointers;
-    assert(alocateDataBlocks(blockCount, pointers) == blockCount);
-    root.pointers.direct[0] = pointers[0];
+    assert(sb.blockSize >= 2 * sizeof(dirItem));
+    root.pointers.direct[0] = alocateDataBlock();
     fileStream.seekp(sb.inodeAddress() + root.id * sizeof(inode));
     fileStream.write(reinterpret_cast<char*>(&root), sizeof(root));
     fileStream.seekp(root.pointers.direct[0]);
     fileStream.write(reinterpret_cast<char*>(dirItems), sizeof(dirItems));
 }
 
-errorCode fileSystem::makeDir(char dirName[fileLiteralLenght], size_type parentInnodeID)
+errorCode fileSystem::makeDir(const char dirName[fileLiteralLenght], size_type parentInnodeID)
 {
+    inode parent;
+    fileStream.seekg(sb.inodeAddress() + parentInnodeID * sizeof(inode)).read(reinterpret_cast<char*>(&parent), sizeof(inode));
+
+    std::vector<pointer_type>data;
+    getDataPointers(parent, data);
+    std::vector<dirItem> contains;
+    for (auto dataBlock : data)
+    {
+        fileStream.seekg(dataBlock);
+        size_t blockSize = sb.blockSize;
+        while (blockSize >= sizeof(dirItem))
+        {
+            dirItem curent;
+            fileStream.read(reinterpret_cast<char*>(&curent), sizeof(dirItem));
+            blockSize -= sizeof(dirItem);
+            if (std::strncmp(curent.name, dirName, fileLiteralLenght) == 0)
+            {
+                return errorCode::EXIST;
+            }
+        }
+    }
+    pointer_type pointer;
+    int freeSpace = sb.blockSize - parent.fileSize;
+    if (freeSpace >= sizeof(dirItem))
+    {
+        pointer = data.back();
+        pointer += parent.fileSize;
+    } else {
+        parent.fileSize += freeSpace;
+        pointer = alocateDataBlock();
+    }
+
+    inode dir = alocateNewInode();
+    if (dir.id == 0)
+    {
+        return errorCode::INODE_POOL_FULL;
+    }
+    dir.type = inode::dir;
+    dirItem dirItems[2];
+    dirItems[0] = dirItem("..", parent.id);
+    dirItems[1] = dirItem(".", dir.id);
+    dir.fileSize += 2 * sizeof(dirItem);
+    dir.pointers.direct[0] = alocateDataBlock();
+
+    dirItem newDir(dirName, parent.id);
+    fileStream.seekp(pointer).write(reinterpret_cast<char*>(&newDir), sizeof(dirItem));
+    parent.fileSize += sizeof(dirItem);
+
+    fileStream.seekp(sb.inodeAddress() + dir.id * sizeof(inode)).write(reinterpret_cast<char*>(&dir), sizeof(inode));
+    fileStream.seekp(sb.inodeAddress() + parent.id * sizeof(inode)).write(reinterpret_cast<char*>(&parent), sizeof(inode));
+
+    fileStream.seekp(dir.pointers.direct[0]).write(reinterpret_cast<char*>(&dirItems), 2 * sizeof(dirItem));
 
     return errorCode::OK;
+}
+void fileSystem::getDataPointers(inode inode, std::vector<pointer_type>& pointers)
+{
+    int size = inode.fileSize;
+    for (size_t i = 0; i < directPointersCount && size > 0; i++)
+    {
+        pointers.push_back(inode.pointers.direct[i]);
+        size -= sb.blockSize;
+    }
+    if (size <= 0)
+    {
+        return;
+    }
+    assert(false);
 }
 
 inode fileSystem::alocateNewInode()
@@ -80,12 +144,26 @@ inode fileSystem::alocateNewInode()
         }
         id++;
     }
-    return inode(id <= sb.inodeCount ? id : 0);
+    return inode(id < sb.inodeCount ? id : 0);
 }
 
 void fileSystem::freeInode(size_type inodeId)
 {
-    (inodeBitArray.begin()+=inodeId).flip(fileStream);
+    (inodeBitArray.begin() += inodeId).flip(fileStream);
+}
+
+pointer_type fileSystem::alocateDataBlock()
+{
+    size_type index = 0;
+    for (auto it = dataBlockBitArray.begin(); it != dataBlockBitArray.end();it++, index++)
+    {
+        if (it.getVal(fileStream) == false)
+        {
+            it.flip(fileStream);
+            break;
+        }
+    }
+    return sb.dataAddress() + index * sb.blockSize;
 }
 
 size_t fileSystem::alocateDataBlocks(size_t numberOfDataBlocks, std::vector<pointer_type>& pointers)

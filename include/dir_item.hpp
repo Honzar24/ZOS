@@ -13,7 +13,7 @@ public:
     //Prizazeny inode
     size_type inode_id;
 
-    inline dirItem(){};
+    inline dirItem() {};
     inline dirItem(const char nname[fileLiteralLenght], size_type& id) :inode_id(id)
     {
         memset(name, '\0', fileLiteralLenght);

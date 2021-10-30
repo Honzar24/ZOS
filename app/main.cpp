@@ -1,5 +1,6 @@
 #include <cstdlib>
 #include <iostream>
+#include <string>
 
 #include <fileSystem.hpp>
 
@@ -21,5 +22,19 @@ int main(int argc, char const* argv[])
     // zarovani sekci do 16 bloku
     // fs.calcAndFormat(103*1024);
     fs.calcAndFormat(103 * 1024);
+    for (size_t i = 0; i < 30; i++)
+    {
+        std::string newDir("test ");
+        newDir.append(std::to_string(i));
+        auto ret = fs.makeDir(newDir.c_str(), 0);
+        if (ret == fileSystem::errorCode::OK)
+        {
+            std::cout << i << ". Dir " << newDir << " created!" << std::endl;
+        }         else
+        {
+            std::cout << i << ". Dir " << newDir << " not created!   " << ret << std::endl;
+        }
+
+    }
     return EXIT_SUCCESS;
 }
