@@ -25,7 +25,7 @@ extern std::fstream LOGSTREAM;
 
 constexpr LOG_LEVEL LOGLEVEL = LOG_LEVEL::ALL;
 
-#define LOGMSG(level,text) LOGSTREAM << level << ":" << std::setw(MAXfilenameLenght) << __FILENAME__ << " line:" << std::setw(MAXlineLenght) << std::right << " msg:" << text << std::endl
+#define LOGMSG(level,text) LOGSTREAM << level << ":" << std::setw(MAXfilenameLenght) << __FILENAME__ << " line:" << std::setw(MAXlineLenght) << std::right << __LINE__ << " msg:" << text << std::endl
 
 #define LOGINIT(filename) LOGSTREAM.open(filename, std::ios::out | std::ios::trunc)
 #define LOG(level,text) ( ( level ) < LOGLEVEL) ? void() : void(LOGMSG(level,text))

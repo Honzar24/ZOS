@@ -143,7 +143,6 @@ errorCode fileSystem::makeDir(const char dirName[fileLiteralLenght], size_type p
     for (auto dataBlock : data)
     {
         SEEKG(dataBlock);
-        assert(!fileStream.fail());
         size_t blockSize = sb.blockSize;
         while (blockSize >= sizeof(dirItem))
         {

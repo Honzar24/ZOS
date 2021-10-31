@@ -18,7 +18,7 @@ superBlock::superBlock(const char sig[maxSignatureLenght], const char desc[maxDe
     description[maxDescriptionLenght] = '\0';
     setupFilePointers();
     assert(blockSize >= sizeof(dirItem) * 2);
-    assert(blockSize % 8 == sizeof(pointer_type));
+    assert(blockSize % sizeof(pointer_type) == 0);
 }
 superBlock::superBlock()
 {
