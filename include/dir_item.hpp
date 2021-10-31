@@ -14,9 +14,9 @@ public:
     size_type inode_id;
 
     inline dirItem() {};
-    inline dirItem(const char nname[fileLiteralLenght], size_type& id) :inode_id(id)
+    inline dirItem(const char name[fileLiteralLenght], size_type& id) :inode_id(id)
     {
-        memset(name, '\0', fileLiteralLenght);
-        strncpy(name, nname, fileLiteralLenght - 1);
+        memset(this->name, '\0', fileLiteralLenght);
+        strncpy(this->name, name, fileLiteralLenght - 1);
     }
 };

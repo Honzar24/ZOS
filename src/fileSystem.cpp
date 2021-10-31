@@ -22,8 +22,8 @@
 
 #define WRITE(data,sizeBytes)\
     assert((!fileStream.fail()) && "preWRITE");\
-    fileStream.write(data, sizeBytes).flush();\
     TRACE("Write to  address:" << ADDRESSOFSET << fileStream.tellp()  << " size " << sizeBytes);\
+    fileStream.write(data, sizeBytes).flush();\
     assert((!fileStream.fail())&& "posWRITE")
 
 #define AWRITE(address,data,sizeBytes)\
@@ -33,8 +33,8 @@
 
 #define READ(data,sizeBytes)\
     assert((!fileStream.fail()) && "preREAD");\
-    fileStream.read(data, sizeBytes);\
     TRACE("Read from address:" << ADDRESSOFSET << fileStream.tellg() << " size " << sizeBytes);\
+    fileStream.read(data, sizeBytes);\
     assert((!fileStream.fail()) && "posREAD")
 
 #define AREAD(address,data,sizeBytes)\
@@ -136,7 +136,6 @@ errorCode fileSystem::makeDir(const char dirName[fileLiteralLenght], size_type p
     inode parent;
     AREAD(sb.inodeAddress() + parentInnodeID * sizeof(inode), reinterpret_cast<char*>(&parent), sizeof(inode));
 
-
     std::vector<pointer_type>data;
     getDataPointers(parent, data);
 
@@ -155,33 +154,33 @@ errorCode fileSystem::makeDir(const char dirName[fileLiteralLenght], size_type p
             }
         }
     }
+
     pointer_type pointer;
     int freeSpace = data.size() * sb.blockSize - parent.fileSize;
     if (freeSpace >= sizeof(dirItem))
     {
         pointer = data.back();
-        pointer += parent.fileSize;
+        pointer += sb.blockSize - freeSpace;
     } else {
         parent.fileSize += freeSpace;
         pointer = alocateDataBlock();
         addPointer(parent, pointer);
     }
-
+    //pridani pod adresare do data sekce parent inode
     dirItem newDir(dirName, parent.id);
     AWRITE(pointer, reinterpret_cast<char*>(&newDir), sizeof(dirItem));
+    //zvetceni zabrane data casti a propsani do parent inody
     parent.fileSize += sizeof(dirItem);
     AWRITE(sb.inodeAddress() + parent.id * sizeof(inode), reinterpret_cast<char*>(&parent), sizeof(inode));
-
+    //vytvoreni odkazu parent self
     dir.type = inode::dir;
     dirItem dirItems[2];
     dirItems[0] = dirItem("..", parent.id);
     dirItems[1] = dirItem(".", dir.id);
     dir.fileSize += 2 * sizeof(dirItem);
     addPointer(dir, alocateDataBlock());
-
     AWRITE(sb.inodeAddress() + dir.id * sizeof(inode), reinterpret_cast<char*>(&dir), sizeof(inode));
     AWRITE(dir.pointers.direct[0], reinterpret_cast<char*>(&dirItems), 2 * sizeof(dirItem));
-
     return errorCode::OK;
 }
 void fileSystem::getDataPointers(inode inode, std::vector<pointer_type>& pointers)
@@ -214,7 +213,7 @@ void fileSystem::getDataPointers(inode inode, std::vector<pointer_type>& pointer
         }
     }
     //preteceni velikosti
-    assert(false);
+    assert(false && "preteceni velikosti souboru");
 }
 
 inode fileSystem::alocateNewInode()
@@ -229,13 +228,13 @@ inode fileSystem::alocateNewInode()
         }
         id++;
     }
-    TRACE("Can not find any free inode");
+    ERROR("Can not find any free inode");
     return inode(0);
 }
 
 void fileSystem::freeInode(size_type inodeId)
 {
-    TRACE("Free inode " << inodeId);
+    DEBUG("Free inode " << inodeId);
     (inodeBitArray.begin() += inodeId).flip(fileStream);
 }
 
@@ -252,9 +251,9 @@ pointer_type fileSystem::alocateDataBlock()
     }
     assert(index < sb.blockCount);
     pointer_type pointer = sb.dataAddress() + index * sb.blockSize;
-    TRACE("Alocating Data block " << index << " on address:" << pointer);
+    DEBUG("Alocating Data block " << index << " on address:" << pointer);
 #ifndef NDEBUG
-    TRACE("Zeroing Data Block " << index);
+    DEBUG("Zeroing Data Block " << index);
     char* zero = new char[sb.blockSize];
     std::memset(zero, '\0', sb.blockSize);
     AWRITE(pointer, zero, sb.blockSize);
@@ -314,9 +313,7 @@ errorCode fileSystem::format()
     fileStream.open(fileName, std::ios::out | std::ios::in | std::ios::binary | std::ios::trunc);
     if (!fileStream.is_open())
     {
-    #ifndef NDEBUG
-        std::cerr << "FATAL:File " << fileName << " can not be create by program. " << strerror(errno) << std::endl;
-    #endif
+        FATAL("File " << fileName << " can not be create by program. " << strerror(errno));
         return errorCode::CANNOT_CREATE_FILE;
     }
     // superBlock
