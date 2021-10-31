@@ -47,6 +47,9 @@ private:
     superBlock sb;
     fileBitArray inodeBitArray;
     fileBitArray dataBlockBitArray;
+    bool addToIndirect(pointer_type pointer);
+    void addPointer(inode& inode, pointer_type pointer);
+    
     void createRoot();
     /**
      * @brief zabrani prvni volne inody na disku
