@@ -6,7 +6,7 @@
 
 #include <superBlock.hpp>
 #include <inode.hpp>
-#include <dir_item.hpp>
+#include <dirItem.hpp>
 
 
 superBlock::superBlock(const char sig[maxSignatureLenght], const char desc[maxDescriptionLenght], size_type diskSize, size_type blockSize, size_type inodeCount, size_type blockCount) :

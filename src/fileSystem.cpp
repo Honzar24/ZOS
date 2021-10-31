@@ -4,11 +4,10 @@
 #include <cassert>
 
 #include <fileSystem.hpp>
-#include <dir_item.hpp>
+#include <dirItem.hpp>
 #include <log.hpp>
 
-
-#define ADDRESSOFSET std::setw(16) << std::right
+#define STREAMADDRESS(address) "0x" << std::setw(16) << std::left << std::hex << address << std::dec
 
 #define SEEKG(pos)\
     assert((!fileStream.fail()) && "preSEEKG");\
@@ -22,7 +21,7 @@
 
 #define WRITE(data,sizeBytes)\
     assert((!fileStream.fail()) && "preWRITE");\
-    TRACE("Write to  address:" << ADDRESSOFSET << fileStream.tellp()  << " size " << sizeBytes);\
+    TRACE("Write to  address:" << STREAMADDRESS(fileStream.tellp()) << " size " << sizeBytes);\
     fileStream.write(data, sizeBytes).flush();\
     assert((!fileStream.fail())&& "posWRITE")
 
@@ -33,7 +32,7 @@
 
 #define READ(data,sizeBytes)\
     assert((!fileStream.fail()) && "preREAD");\
-    TRACE("Read from address:" << ADDRESSOFSET << fileStream.tellg() << " size " << sizeBytes);\
+    TRACE("Read from address:" << STREAMADDRESS(fileStream.tellg()) << " size " << sizeBytes);\
     fileStream.read(data, sizeBytes);\
     assert((!fileStream.fail()) && "posREAD")
 
@@ -122,7 +121,46 @@ void fileSystem::addPointer(inode& inode, pointer_type pointer)
             return;
         }
     }
-    assert(false && "preteceni adresovatelne pameti inodu");
+    FATAL("preteceni adresovatelne pameti inodu");
+    exit(EXIT_FAILURE);
+}
+bool fileSystem::addDirItem(inode& node, dirItem& item)
+{
+    std::vector<pointer_type>data;
+    getDataPointers(node, data);
+
+    for (auto dataBlock : data)
+    {
+        SEEKG(dataBlock);
+        size_t blockSize = sb.blockSize;
+        while (blockSize >= sizeof(dirItem))
+        {
+            dirItem curent;
+            READ(reinterpret_cast<char*>(&curent), sizeof(dirItem));
+            blockSize -= sizeof(dirItem);
+            if (std::strncmp(curent.name, item.name, fileLiteralLenght) == 0)
+            {
+                return false;
+            }
+        }
+    }
+
+    pointer_type pointer;
+    int freeSpace = data.size() * sb.blockSize - node.fileSize;
+    if (freeSpace >= sizeof(dirItem))
+    {
+        pointer = data.back();
+        pointer += sb.blockSize - freeSpace;
+    } else {
+        node.fileSize += freeSpace;
+        pointer = alocateDataBlock();
+        addPointer(node, pointer);
+    }
+    AWRITE(pointer, reinterpret_cast<char*>(&item), sizeof(dirItem));
+    //zvetceni zabrane data casti a propsani do parent inody
+    node.fileSize += sizeof(dirItem);
+    AWRITE(sb.inodeAddress() + node.id * sizeof(inode), reinterpret_cast<char*>(&node), sizeof(inode));
+    return true;
 }
 
 errorCode fileSystem::makeDir(const char dirName[fileLiteralLenght], size_type parentInnodeID)
@@ -136,42 +174,12 @@ errorCode fileSystem::makeDir(const char dirName[fileLiteralLenght], size_type p
     inode parent;
     AREAD(sb.inodeAddress() + parentInnodeID * sizeof(inode), reinterpret_cast<char*>(&parent), sizeof(inode));
 
-    std::vector<pointer_type>data;
-    getDataPointers(parent, data);
-
-    for (auto dataBlock : data)
-    {
-        SEEKG(dataBlock);
-        size_t blockSize = sb.blockSize;
-        while (blockSize >= sizeof(dirItem))
-        {
-            dirItem curent;
-            READ(reinterpret_cast<char*>(&curent), sizeof(dirItem));
-            blockSize -= sizeof(dirItem);
-            if (std::strncmp(curent.name, dirName, fileLiteralLenght) == 0)
-            {
-                return errorCode::EXIST;
-            }
-        }
-    }
-
-    pointer_type pointer;
-    int freeSpace = data.size() * sb.blockSize - parent.fileSize;
-    if (freeSpace >= sizeof(dirItem))
-    {
-        pointer = data.back();
-        pointer += sb.blockSize - freeSpace;
-    } else {
-        parent.fileSize += freeSpace;
-        pointer = alocateDataBlock();
-        addPointer(parent, pointer);
-    }
     //pridani pod adresare do data sekce parent inode
     dirItem newDir(dirName, parent.id);
-    AWRITE(pointer, reinterpret_cast<char*>(&newDir), sizeof(dirItem));
-    //zvetceni zabrane data casti a propsani do parent inody
-    parent.fileSize += sizeof(dirItem);
-    AWRITE(sb.inodeAddress() + parent.id * sizeof(inode), reinterpret_cast<char*>(&parent), sizeof(inode));
+    if(!addDirItem(parent,newDir))
+    {
+        return errorCode::EXIST;
+    }
     //vytvoreni odkazu parent self
     dir.type = inode::dir;
     dirItem dirItems[2];
@@ -212,8 +220,8 @@ void fileSystem::getDataPointers(inode inode, std::vector<pointer_type>& pointer
             return;
         }
     }
-    //preteceni velikosti
-    assert(false && "preteceni velikosti souboru");
+    FATAL("preteceni velikosti souboru");
+    exit(EXIT_FAILURE);
 }
 
 inode fileSystem::alocateNewInode()
@@ -249,9 +257,13 @@ pointer_type fileSystem::alocateDataBlock()
             break;
         }
     }
-    assert(index < sb.blockCount);
+    if(index >= sb.blockCount)
+    {
+        FATAL("No free data blocks");
+        exit(EXIT_FAILURE);
+    }
     pointer_type pointer = sb.dataAddress() + index * sb.blockSize;
-    DEBUG("Alocating Data block " << index << " on address:" << pointer);
+    DEBUG("Alocating Data block " << index << " on address:" << STREAMADDRESS(pointer));
 #ifndef NDEBUG
     DEBUG("Zeroing Data Block " << index);
     char* zero = new char[sb.blockSize];

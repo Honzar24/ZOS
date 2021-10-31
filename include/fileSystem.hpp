@@ -7,6 +7,7 @@
 #include "superBlock.hpp"
 #include "fileBitArray.hpp"
 #include "inode.hpp"
+#include "dirItem.hpp"
 
 /**
  * i - pocet inodu
@@ -49,6 +50,7 @@ private:
     fileBitArray dataBlockBitArray;
     bool addToIndirect(pointer_type pointer);
     void addPointer(inode& inode, pointer_type pointer);
+    bool addDirItem(inode& inode, dirItem& dirItem);
 
     void createRoot();
     /**

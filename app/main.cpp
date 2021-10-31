@@ -21,12 +21,12 @@ int main(int argc, char const* argv[])
     LOGINIT("main.log");
 
     std::string fileName(argv[1]);
-    superBlock sb(defaulSignature,defaulDescription,64,85,128);
+    superBlock sb(defaulSignature,defaulDescription,128,100,100);
     fileSystem fs(fileName,sb);
     // zarovani sekci do 16 bloku
     // fs.calcAndFormat(103*1024);
     //fs.calcAndFormat(103 * 1024);
-    for (size_t i = 0; i < 49; i++)
+    for (size_t i = 0; i < 10; i++)
     {
         std::string newDir("test ");
         newDir.append(std::to_string(i));

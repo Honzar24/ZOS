@@ -14,6 +14,20 @@ enum LOG_LEVEL : size_t {
     ERROR,
     FATAL
 };
+inline std::string getLogLevelLiteral(LOG_LEVEL level)
+{
+    switch (level)
+    {
+    case TRACE: return "TRACE";
+    case DEBUG: return "DEBUG";
+    case WARN:  return "WARN";
+    case INFO:  return "INFO";
+    case ERROR: return "ERROR";
+    case FATAL: return "FATAL";    
+    default:
+        return "ULOG";
+    }
+}
 
 #ifndef NLOG
 #define __FILENAME__ (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
@@ -25,7 +39,7 @@ extern std::fstream LOGSTREAM;
 
 constexpr LOG_LEVEL LOGLEVEL = LOG_LEVEL::ALL;
 
-#define LOGMSG(level,text) LOGSTREAM << level << ":" << std::setw(MAXfilenameLenght) << __FILENAME__ << " line:" << std::setw(MAXlineLenght) << std::right << __LINE__ << " msg:" << text << std::endl
+#define LOGMSG(level,text) LOGSTREAM << std::setw(5) << getLogLevelLiteral(level) << ":" << std::setw(MAXfilenameLenght) << __FILENAME__ << " line:" << std::setw(MAXlineLenght) << std::right << __LINE__ << " msg:" << text << std::endl
 
 #define LOGINIT(filename) LOGSTREAM.open(filename, std::ios::out | std::ios::trunc)
 #define LOG(level,text) ( ( level ) < LOGLEVEL) ? void() : void(LOGMSG(level,text))
