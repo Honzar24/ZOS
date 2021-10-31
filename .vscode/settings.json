@@ -83,5 +83,6 @@
         "args": [
             "soubor"
         ]
-    }
+    },
+    "C_Cpp.intelliSenseEngineFallback": "Enabled"
 }

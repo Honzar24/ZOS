@@ -3,6 +3,7 @@
 #include <string>
 
 #include <fileSystem.hpp>
+#include <log.hpp>
 
 void printArgsHelp(char const argv[])
 {
@@ -17,12 +18,15 @@ int main(int argc, char const* argv[])
         printArgsHelp(*argv);
         return EXIT_FAILURE;
     }
+    LOGINIT("main.log");
+
     std::string fileName(argv[1]);
-    fileSystem fs(fileName);
+    superBlock sb(defaulSignature,defaulDescription,64,85,128);
+    fileSystem fs(fileName,sb);
     // zarovani sekci do 16 bloku
     // fs.calcAndFormat(103*1024);
-    fs.calcAndFormat(103 * 1024);
-    for (size_t i = 0; i < 30; i++)
+    //fs.calcAndFormat(103 * 1024);
+    for (size_t i = 0; i < 49; i++)
     {
         std::string newDir("test ");
         newDir.append(std::to_string(i));
@@ -38,3 +42,4 @@ int main(int argc, char const* argv[])
     }
     return EXIT_SUCCESS;
 }
+
