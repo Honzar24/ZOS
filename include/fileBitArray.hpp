@@ -120,8 +120,8 @@ public:
     }
     inline void flip(std::fstream& fileStream)
     {
-        fileStream.seekg(start + byte - 1);
         std::bitset<8> currentByte;
+        fileStream.seekg(start + byte - 1);        
         fileStream.read(reinterpret_cast<char*>(&currentByte), 1);
         currentByte[bit].flip();
         fileStream.seekp(start + byte - 1);
@@ -129,8 +129,8 @@ public:
     }
     inline void flipByte(std::fstream& fileStream)
     {
-        fileStream.seekg(start + byte - 1);
         std::bitset<8> currentByte;
+        fileStream.seekg(start + byte - 1);        
         fileStream.read(reinterpret_cast<char*>(&currentByte), 1);
         currentByte.flip();
         fileStream.seekp(start + byte - 1);
@@ -147,13 +147,10 @@ public:
     }
     inline ValueType getVal(std::fstream& fileStream)
     {
-        auto curpos = fileStream.tellg();
         fileStream.seekg(start + byte - 1);
         std::bitset<8> cByte;
         fileStream.read(reinterpret_cast<char*>(&cByte), 1);
-        bool ret = cByte[bit];
-        fileStream.seekg(curpos);
-        return ret;
+        return cByte[bit];
     }
     inline bool operator==(fileBitIterator o)
     {
