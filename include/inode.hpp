@@ -9,11 +9,7 @@ struct inode_poiters
     //prime ukazatele na databloky
     pointer_type direct[directPointersCount];
     // neprimi ukazatel 1.radu => na blok ukazatelu na databloky
-    pointer_type indirect1;
-    // neprimi ukazatel 2. radu na blok ukazatelu na ukazatele 1. radu
-    pointer_type indirect2;
-    // neprimi ukazatel 3. radu na blok ukazatelu na ukazatele 2. radu
-    pointer_type indirect3;
+    pointer_type indirect[indirectPointersCount];
 };
 
 

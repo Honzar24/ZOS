@@ -13,7 +13,8 @@ using pointer_type = u_int64_t;
 using counter_type = u_int8_t;
 
 // structures
-constexpr const size_t directPointersCount = 12;
+constexpr const size_t directPointersCount = 2;
+constexpr const size_t indirectPointersCount = 3;
 
 // superBlock
 constexpr const size_t maxSignatureLenght = 10;
