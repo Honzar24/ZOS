@@ -5,7 +5,7 @@
 #include <iostream>
 #include <iomanip>
 
-enum LOG_LEVEL: size_t{
+enum LOG_LEVEL : size_t {
     ALL = 0,
     TRACE,
     DEBUG,

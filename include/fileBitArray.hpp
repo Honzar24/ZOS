@@ -121,7 +121,7 @@ public:
     inline void flip(std::fstream& fileStream)
     {
         std::bitset<8> currentByte;
-        fileStream.seekg(start + byte - 1);        
+        fileStream.seekg(start + byte - 1);
         fileStream.read(reinterpret_cast<char*>(&currentByte), 1);
         currentByte[bit].flip();
         fileStream.seekp(start + byte - 1);
@@ -130,7 +130,7 @@ public:
     inline void flipByte(std::fstream& fileStream)
     {
         std::bitset<8> currentByte;
-        fileStream.seekg(start + byte - 1);        
+        fileStream.seekg(start + byte - 1);
         fileStream.read(reinterpret_cast<char*>(&currentByte), 1);
         currentByte.flip();
         fileStream.seekp(start + byte - 1);

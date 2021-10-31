@@ -87,7 +87,7 @@ bool fileSystem::addToIndirect(pointer_type pointer)
             int pos = fileStream.tellg();
             pos -= sizeof(pointer_type);
             auto data = reinterpret_cast<char*>(&pointer);
-            DEBUG("pointer "<< pointer << " as " << i << " indirect pointer ");
+            DEBUG("pointer " << pointer << " as " << i << " indirect pointer ");
             AWRITE(pos, data, sizeof(pointer_type));
             return true;
         }
@@ -179,7 +179,7 @@ errorCode fileSystem::makeDir(const char dirName[fileLiteralLenght], size_type p
     dirItems[1] = dirItem(".", dir.id);
     dir.fileSize += 2 * sizeof(dirItem);
     addPointer(dir, alocateDataBlock());
-    
+
     AWRITE(sb.inodeAddress() + dir.id * sizeof(inode), reinterpret_cast<char*>(&dir), sizeof(inode));
     AWRITE(dir.pointers.direct[0], reinterpret_cast<char*>(&dirItems), 2 * sizeof(dirItem));
 
