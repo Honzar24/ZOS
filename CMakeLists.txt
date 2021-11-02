@@ -8,6 +8,16 @@ project(
     DESCRIPTION "I-node -ový souborový systém. Vypracováno jako semestralní práce z předmětu KIV/ZOS." 
     LANGUAGES CXX)
 
+option(LOGFLAG "Logovani funkce fs" ON)
+
+if(LOGFLAG)
+    message("Logovani zapnuto")
+else()
+    message("Vypinám logovani")
+    add_compile_definitions(NLOG)
+endif()
+
+
 if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
     set(CMAKE_CXX_EXTENSIONS OFF)
     set_property(GLOBAL PROPERTY USE_FOLDERS ON)

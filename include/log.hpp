@@ -23,7 +23,7 @@ inline std::string getLogLevelLiteral(LOG_LEVEL level)
     case WARN:  return "WARN";
     case INFO:  return "INFO";
     case ERROR: return "ERROR";
-    case FATAL: return "FATAL";    
+    case FATAL: return "FATAL";
     default:
         return "ULOG";
     }
@@ -37,9 +37,9 @@ inline std::string getLogLevelLiteral(LOG_LEVEL level)
 
 extern std::fstream LOGSTREAM;
 
-constexpr LOG_LEVEL LOGLEVEL = LOG_LEVEL::ALL;
+constexpr LOG_LEVEL LOGLEVEL = LOG_LEVEL::DEBUG;
 
-#define LOGMSG(level,text) LOGSTREAM << std::setw(5) << getLogLevelLiteral(level) << ":" << std::setw(MAXfilenameLenght) << __FILENAME__ << " line:" << std::setw(MAXlineLenght) << std::right << __LINE__ << " msg:" << text << std::endl
+#define LOGMSG(level,text) LOGSTREAM << std::setw(5) << getLogLevelLiteral(level) << ":" << std::setw(MAXfilenameLenght) << __FILENAME__ << " line:" << std::setw(MAXlineLenght) << std::left << __LINE__ << " msg:" << text << std::endl
 
 #define LOGINIT(filename) LOGSTREAM.open(filename, std::ios::out | std::ios::trunc)
 #define LOG(level,text) ( ( level ) < LOGLEVEL) ? void() : void(LOGMSG(level,text))
