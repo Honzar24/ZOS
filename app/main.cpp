@@ -26,8 +26,9 @@ int main(int argc, char const* argv[])
     fileSystem fs(fileName);
     // zarovani sekci do 16 bloku
     // fs.calcAndFormat(103*1024);
-    fs.calcAndFormat(103 * 1024);
-    for (size_t i = 0; i < 3; i++)
+    //fs.calcAndFormat(103 * 1024);
+    /*
+    for (size_t i = 0; i < 30; i++)
     {
         std::string newDir("dir ");
         newDir += (char)('A' + i);
@@ -42,7 +43,7 @@ int main(int argc, char const* argv[])
     }
     for (size_t i = 1; i <= 3; i++)
     {
-        for (size_t j = 0; j <= 3; j++)
+        for (size_t j = 0; j <= 10; j++)
         {
             std::string newSubDir("sub ");
             newSubDir += (char)('A' + i-1);
@@ -59,6 +60,7 @@ int main(int argc, char const* argv[])
 
         }
     }
+    */
     for (size_t j = 0; j <= 3; j++)
     {
         std::vector<std::string> names;

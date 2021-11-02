@@ -86,17 +86,17 @@ void fileSystem::createRoot()
 }
 bool fileSystem::addToIndirect(pointer_type pointer)
 {
-    for (size_t i = 0; i < sb.blockSize / sizeof(pointer_type); i++)
+    size_t pointerCount = sb.blockSize / sizeof(pointer_type);
+    pointer_type pointerBlock[pointerCount];
+    size_t basePointer = fileStream.tellg();
+    READ(reinterpret_cast<char*>(pointerBlock), pointerCount * sizeof(pointer_type));
+    for (size_t i = 0; i < pointerCount; i++)
     {
-        pointer_type curppointer = 0;
-        READ(reinterpret_cast<char*>(&curppointer), sizeof(pointer_type));
-        if (curppointer == 0)
+        if (pointerBlock[i] == 0)
         {
-            int pos = fileStream.tellg();
-            pos -= sizeof(pointer_type);
             auto data = reinterpret_cast<char*>(&pointer);
             DEBUG("pointer to " << STREAMADDRESS(pointer) << " as " << i << " pointer ");
-            AWRITE(pos, data, sizeof(pointer_type));
+            AWRITE(basePointer + i * sizeof(pointer_type), data, sizeof(pointer_type));
             return true;
         }
     }
@@ -137,15 +137,15 @@ bool fileSystem::addDirItem(inode& node, dirItem& item)
 {
     std::vector<pointer_type>data;
     getDataPointers(node, data);
+    size_t dirItemCount = sb.blockSize / sizeof(dirItem);
     for (auto dataBlock : data)
     {
         SEEKG(dataBlock);
-        size_t dirItemCount = sb.blockSize / sizeof(dirItem);
+        dirItem curent[dirItemCount];
+        READ(reinterpret_cast<char*>(curent), dirItemCount * sizeof(dirItem));
         for (size_t i = 0; i < dirItemCount; i++)
         {
-            dirItem curent;
-            READ(reinterpret_cast<char*>(&curent), sizeof(dirItem));
-            if (std::strncmp(curent.name, item.name, fileLiteralLenght) == 0)
+            if (std::strncmp(curent[i].name, item.name, fileLiteralLenght) == 0)
             {
                 return false;
             }
@@ -169,7 +169,7 @@ bool fileSystem::addDirItem(inode& node, dirItem& item)
     return true;
 }
 
-errorCode fileSystem::ls(size_type inodeID,std::vector<std::string>& dirItems)
+errorCode fileSystem::ls(size_type inodeID, std::vector<std::string>& dirItems)
 {
     inode dir;
     AREAD(sb.inodeAddress() + inodeID * sizeof(inode), reinterpret_cast<char*>(&dir), sizeof(inode));
@@ -177,36 +177,36 @@ errorCode fileSystem::ls(size_type inodeID,std::vector<std::string>& dirItems)
     {
         return errorCode::PATH_NOT_FOUND;
     }
-    
     std::vector<pointer_type> data;
-    getDataPointers(dir,data);
+    getDataPointers(dir, data);
+    size_t dirItemCount = sb.blockSize / sizeof(dirItem);
     for (auto dataBlock : data)
     {
-        size_t dirItemCount = sb.blockSize / sizeof(dirItem);
+        SEEKG(dataBlock);
+        dirItem curent[dirItemCount];
+        READ(reinterpret_cast<char*>(curent), dirItemCount * sizeof(dirItem));
         for (size_t i = 0; i < dirItemCount; i++)
         {
-            dirItem curentDirItem;
-            inode curentInode;
-            AREAD(dataBlock + i * sizeof(dirItem),reinterpret_cast<char*>(&curentDirItem), sizeof(dirItem));            
-            if (!std::strncmp(curentDirItem.name, "", fileLiteralLenght) == 0)
+            if (!std::strncmp(curent[i].name, "", fileLiteralLenght) == 0)
             {
-                AREAD(sb.inodeAddress() + curentDirItem.inode_id * sizeof(inode), reinterpret_cast<char*>(&curentInode), sizeof(inode));
+                inode curentInode;
+                AREAD(sb.inodeAddress() + curent[i].inode_id * sizeof(inode), reinterpret_cast<char*>(&curentInode), sizeof(inode));
                 std::string qname;
                 switch (curentInode.type)
                 {
                 case inode::inode_types::dir:
-                        qname.append("+");
+                    qname.append("+");
                     break;
                 case inode::inode_types::file:
-                        qname.append("-");
+                    qname.append("-");
                     break;
-                
+
                 default:
-                qname.append("?");
+                    qname.append("?");
                     break;
                 }
-                qname.append(curentDirItem.name);
-                dirItems.push_back(qname);                
+                qname.append(curent[i].name);
+                dirItems.push_back(qname);
             }
         }
     }
@@ -231,12 +231,11 @@ errorCode fileSystem::makeDir(const char dirName[fileLiteralLenght], size_type p
         freeInode(dir.id);
         return errorCode::EXIST;
     }
-    
 
     dir.type = inode::dir;
     dirItem dirItems[2];
     dirItems[0] = dirItem(".", dir.id);
-    dirItems[1] = dirItem("..", parent.id);    
+    dirItems[1] = dirItem("..", parent.id);
     dir.fileSize += 2 * sizeof(dirItem);
     addPointer(dir, alocateDataBlock());
     DEBUG("Creating directory with name " << newDir.name << " inode id " << parent.id << "/" << dir.id);
@@ -264,17 +263,13 @@ void fileSystem::getDataPointers(inode& inode, std::vector<pointer_type>& pointe
         {
             return;
         }
-        SEEKG(inode.pointers.indirect[i]);
+        pointer_type dataPointres[pointerCount];
+        AREAD(inode.pointers.indirect[i],reinterpret_cast<char*>(dataPointres), pointerCount * sizeof(pointer_type));
         for (size_t i = 0; i < pointerCount; i++)
         {
-            pointer_type dataPointer;
-            READ(reinterpret_cast<char*>(&dataPointer), sizeof(pointer_type));
-            if (dataPointer != 0)
+            if (dataPointres[i] != 0)
             {
-                pointers.push_back(dataPointer);
-            } else
-            {
-                return;
+                pointers.push_back(dataPointres[i]);
             }
         }
     }

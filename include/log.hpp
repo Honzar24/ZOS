@@ -37,7 +37,7 @@ inline std::string getLogLevelLiteral(LOG_LEVEL level)
 
 extern std::fstream LOGSTREAM;
 
-constexpr LOG_LEVEL LOGLEVEL = LOG_LEVEL::DEBUG;
+constexpr LOG_LEVEL LOGLEVEL = LOG_LEVEL::ALL;
 
 #define LOGMSG(level,text) LOGSTREAM << std::setw(5) << getLogLevelLiteral(level) << ":" << std::setw(MAXfilenameLenght) << __FILENAME__ << " line:" << std::setw(MAXlineLenght) << std::left << __LINE__ << " msg:" << text << std::endl
 
