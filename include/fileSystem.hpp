@@ -19,8 +19,15 @@
  *
  * pokud i a b nejsou delitelne 8 tak jejich velikost je celociselne deleni + 1
  *
- * TODO: diskSize je velikost adresovatelneho prostoru pro soubory / velikost souboru
- * TODO: zjistit zda je mozne vytvorit soubor mensi nez pozadovana velikost
+ * TODO: diskSize je velikost souboru
+ * TODO: je mozne vytvorit soubor mensi nez pozadovana velikost
+ * TODO: co delat pri nedostatku inodu
+ * TODO: co delat pokud dosli data bloky
+ * TODO: co delat pokud dana inoda jiz nemuze na addresovat dalsi block
+ * 
+ * optimalizace io / minilalizace runtime mem
+ * 
+ * 
  * padding je nepovinne pole slouzi pouze k dorovnani skutecne velikosti do pozadovane velikosti
  *
  */
@@ -48,13 +55,40 @@ private:
     superBlock sb;
     fileBitArray inodeBitArray;
     fileBitArray dataBlockBitArray;
+    /**
+     * @brief prida pointer do databloku
+     * 
+     * @param pointer 
+     * @return true ano podarilo se pridat
+     * @return false nepodarilo
+     */
     bool addToIndirect(pointer_type pointer);
+    /**
+     * @brief pokusi se pridat pointer k inodu
+     * 
+     * @param inode 
+     * @param pointer 
+     */
     void addPointer(inode& inode, pointer_type pointer);
+    /**
+     * @brief prida zaznam do data bloku o novem soubodu v adresari
+     * 
+     * @param inode 
+     * @param dirItem 
+     * @return true pridano
+     * @return false nelze pridat uz dany literal je obsazen
+     */
     bool addDirItem(inode& inode, dirItem& dirItem);
-
+    /**
+     * @brief vytvori root adresar na nove zformatovanem disku
+     *
+     */
     void createRoot();
     /**
      * @brief zabrani prvni volne inody na disku
+     *
+     * @return inode pokud inode.id je 0 tento inode je pozovany za neplatny
+     * protoze je to id root adresare a to nemuze byt nikdy uvolneno
      */
     inode alocateNewInode();
     /**
@@ -65,17 +99,27 @@ private:
     void freeInode(size_type inodeId);
     /**
      * @brief zabere jeden datablock
+     * pokud neni dostatek mista na disku ukonci program
      *
-     * @return pointer_type
+     * @return pointer_type ukazatel na block
      */
     pointer_type alocateDataBlock();
     /**
      * @brief pokusi se zabrat pozadovany pocet bloku a vrati jejich id
+     * pokud fs nema dostatek vrati 0 a nezabere zadny
      *
      * @param numberOfDataBlocks pocet pozadovanych bloku
+     * @param vector vector pro ulozeni pointeru
+     * @return size_t 0 pocet zabranych bloku
      */
     size_t alocateDataBlocks(size_t numberOfDataBlocks, std::vector<pointer_type>& vector);
-    void getDataPointers(inode inode, std::vector<pointer_type>& pointers);
+    /**
+     * @brief vytvori vector data bloku ktere se vazou k danemu inodu
+     *
+     * @param inode
+     * @param pointers kam chceme pointery ulozit
+     */
+    void getDataPointers(inode& inode, std::vector<pointer_type>& pointers);
 
 public:
     /**

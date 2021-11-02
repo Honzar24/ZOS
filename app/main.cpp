@@ -21,25 +21,44 @@ int main(int argc, char const* argv[])
     LOGINIT("main.log");
 
     std::string fileName(argv[1]);
-    superBlock sb(defaulSignature,defaulDescription,128,100,100);
-    fileSystem fs(fileName,sb);
+    superBlock sb(defaulSignature, defaulDescription, 56, 100, 200);
+    //fileSystem fs(fileName, sb);
+    fileSystem fs(fileName);
     // zarovani sekci do 16 bloku
     // fs.calcAndFormat(103*1024);
-    //fs.calcAndFormat(103 * 1024);
-    for (size_t i = 0; i < 10; i++)
+    fs.calcAndFormat(103 * 1024);
+    for (size_t i = 0; i < 2; i++)
     {
-        std::string newDir("test ");
+        std::string newDir("dir ");
         newDir.append(std::to_string(i));
         auto ret = fs.makeDir(newDir.c_str(), 0);
         if (ret == fileSystem::errorCode::OK)
         {
             std::cout << i << ". Dir " << newDir << " created!" << std::endl;
-        }         else
+        } else
         {
             std::cout << i << ". Dir " << newDir << " not created!   " << ret << std::endl;
         }
-
     }
+    for (size_t i = 1; i <= 2; i++)
+    {
+       for (size_t j = 0; j < 5; j++)
+            {
+                std::string newSubDir("sub ");
+                newSubDir.append(std::to_string(j));
+                auto ret = fs.makeDir(newSubDir.c_str(), i);
+                if (ret == fileSystem::errorCode::OK)
+                {
+                    std::cout << i << "/" << j << ". subDir " << newSubDir << " created!" << std::endl;
+
+                } else
+                {
+                    std::cout << i << "/" << j << ". subDir " << newSubDir << " not created!   " << ret << std::endl;
+                }
+
+            }
+    }
+    
     return EXIT_SUCCESS;
 }
 

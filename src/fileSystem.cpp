@@ -7,6 +7,12 @@
 #include <dirItem.hpp>
 #include <log.hpp>
 
+/*
+*   Sekce smrti pozor
+*   Ano makra. Proc? Tato konstrukce je vyuzivana k debugu bez pouuziti runtime debugeru pouze za pomoci logu programu
+*   Takto je mozno v logu primo videt z jake funkce je makro volano to to nevim jak by slo docilit pomoci funkce bez slozite konstrukce
+*/
+
 #define STREAMADDRESS(address) "0x" << std::setw(16) << std::left << std::hex << address << std::dec
 
 #define SEEKG(pos)\
@@ -41,6 +47,10 @@
     SEEKG(address);\
     READ(data,sizeBytes);
 
+/*
+*   Konec sekce smrti
+*/
+
 
 fileSystem::fileSystem(std::string& fileName, superBlock& sb) : fileName(fileName), sb(sb), fileStream(fileName)
 {
@@ -54,17 +64,16 @@ fileSystem::fileSystem(std::string& fileName, superBlock& sb) : fileName(fileNam
 }
 fileSystem::fileSystem(std::string& fileName) : fileName(fileName), fileStream(fileName, std::ios::out | std::ios::in | std::ios::binary)
 {
-#ifndef NDEBUG
     if (!fileStream.is_open())
     {
-        INFO("File " << fileName << " can not be open by program. " << strerror(errno));
+        INFO("File " << fileName << " can not be open by program. " << strerror(errno) << "! Use format to create it");
+        return;
     }
-#endif
     AREAD(0, reinterpret_cast<char*>(&sb), sizeof(superBlock));
 }
 void fileSystem::createRoot()
 {
-    TRACE("Creating root");
+    DEBUG("Creating root");
     auto root = alocateNewInode();
     root.type = inode::dir;
     dirItem dirItems[2];
@@ -86,7 +95,7 @@ bool fileSystem::addToIndirect(pointer_type pointer)
             int pos = fileStream.tellg();
             pos -= sizeof(pointer_type);
             auto data = reinterpret_cast<char*>(&pointer);
-            DEBUG("pointer " << pointer << " as " << i << " indirect pointer ");
+            DEBUG("pointer to " << STREAMADDRESS(pointer) << " as " << i << " pointer ");
             AWRITE(pos, data, sizeof(pointer_type));
             return true;
         }
@@ -96,7 +105,7 @@ bool fileSystem::addToIndirect(pointer_type pointer)
 
 void fileSystem::addPointer(inode& inode, pointer_type pointer)
 {
-    DEBUG("Adding pointer " << pointer << " to inode(" << inode.id << ")");
+    DEBUG("Adding pointer to " << STREAMADDRESS(pointer) << " to inode(" << inode.id << ")");
     for (size_t i = 0; i < directPointersCount; i++)
     {
         if (inode.pointers.direct[i] == 0)
@@ -121,30 +130,31 @@ void fileSystem::addPointer(inode& inode, pointer_type pointer)
             return;
         }
     }
-    FATAL("preteceni adresovatelne pameti inodu");
-    exit(EXIT_FAILURE);
+    FATAL("Inode address pool overflow");
+    assert(false);
 }
 bool fileSystem::addDirItem(inode& node, dirItem& item)
 {
     std::vector<pointer_type>data;
     getDataPointers(node, data);
-
     for (auto dataBlock : data)
     {
         SEEKG(dataBlock);
-        size_t blockSize = sb.blockSize;
-        while (blockSize >= sizeof(dirItem))
+        size_t dirItemCount = sb.blockSize / sizeof(dirItem);
+        for (size_t i = 0; i < dirItemCount; i++)
         {
             dirItem curent;
             READ(reinterpret_cast<char*>(&curent), sizeof(dirItem));
-            blockSize -= sizeof(dirItem);
             if (std::strncmp(curent.name, item.name, fileLiteralLenght) == 0)
             {
                 return false;
             }
+            if (std::strncmp(curent.name, "", fileLiteralLenght) == 0)
+            {
+                break;
+            }
         }
     }
-
     pointer_type pointer;
     int freeSpace = data.size() * sb.blockSize - node.fileSize;
     if (freeSpace >= sizeof(dirItem))
@@ -174,54 +184,61 @@ errorCode fileSystem::makeDir(const char dirName[fileLiteralLenght], size_type p
     inode parent;
     AREAD(sb.inodeAddress() + parentInnodeID * sizeof(inode), reinterpret_cast<char*>(&parent), sizeof(inode));
 
-    //pridani pod adresare do data sekce parent inode
     dirItem newDir(dirName, parent.id);
-    if(!addDirItem(parent,newDir))
+    if (!addDirItem(parent, newDir))
     {
+        freeInode(dir.id);
         return errorCode::EXIST;
     }
-    //vytvoreni odkazu parent self
+    
+
     dir.type = inode::dir;
     dirItem dirItems[2];
     dirItems[0] = dirItem("..", parent.id);
     dirItems[1] = dirItem(".", dir.id);
     dir.fileSize += 2 * sizeof(dirItem);
     addPointer(dir, alocateDataBlock());
+    DEBUG("Creating directory with name " << newDir.name << " inode id " << parent.id << "/" << dir.id);
     AWRITE(sb.inodeAddress() + dir.id * sizeof(inode), reinterpret_cast<char*>(&dir), sizeof(inode));
     AWRITE(dir.pointers.direct[0], reinterpret_cast<char*>(&dirItems), 2 * sizeof(dirItem));
     return errorCode::OK;
 }
-void fileSystem::getDataPointers(inode inode, std::vector<pointer_type>& pointers)
+void fileSystem::getDataPointers(inode& inode, std::vector<pointer_type>& pointers)
 {
-    int size = inode.fileSize;
-    for (size_t i = 0; i < directPointersCount && size > 0; i++)
+    for (size_t i = 0; i < directPointersCount; i++)
     {
-        pointers.push_back(inode.pointers.direct[i]);
-        size -= sb.blockSize;
-    }
-    if (size <= 0)
-    {
-        return;
-    }
-    for (size_t i = 0; i < indirectPointersCount; i++)
-    {
-        SEEKG(inode.pointers.indirect[i]);
-        size_type read = 0;
-        while (read + sizeof(pointer_type) <= sb.blockSize && size > 0)
+        if (inode.pointers.direct[i] != 0)
         {
-            pointer_type dataPointer;
-            READ(reinterpret_cast<char*>(&dataPointer), sizeof(pointer_type));
-            read += sizeof(pointer_type);
-            pointers.push_back(dataPointer);
-            size -= sb.blockSize;
-        }
-        if (size <= 0)
+            pointers.push_back(inode.pointers.direct[i]);
+        } else
         {
             return;
         }
+
     }
-    FATAL("preteceni velikosti souboru");
-    exit(EXIT_FAILURE);
+    size_t pointerCount = sb.blockSize / sizeof(pointer_type);
+    for (size_t i = 0; i < indirectPointersCount; i++)
+    {
+        if (inode.pointers.indirect[i] == 0)
+        {
+            return;
+        }
+        SEEKG(inode.pointers.indirect[i]);
+        for (size_t i = 0; i < pointerCount; i++)
+        {
+            pointer_type dataPointer;
+            READ(reinterpret_cast<char*>(&dataPointer), sizeof(pointer_type));
+            if (dataPointer != 0)
+            {
+                pointers.push_back(dataPointer);
+            } else
+            {
+                return;
+            }
+        }
+    }
+    FATAL("File is bigger than inode can address");
+    assert(false);
 }
 
 inode fileSystem::alocateNewInode()
@@ -232,6 +249,7 @@ inode fileSystem::alocateNewInode()
         if (it.getVal(fileStream) == false)
         {
             it.flip(fileStream);
+            DEBUG("Alocating inode " << id);
             return inode(id);
         }
         id++;
@@ -257,7 +275,7 @@ pointer_type fileSystem::alocateDataBlock()
             break;
         }
     }
-    if(index >= sb.blockCount)
+    if (index >= sb.blockCount)
     {
         FATAL("No free data blocks");
         exit(EXIT_FAILURE);
@@ -305,7 +323,7 @@ size_t fileSystem::alocateDataBlocks(size_t numberOfDataBlocks, std::vector<poin
 errorCode fileSystem::calcAndFormat(size_type size)
 {
     sb.diskSize = size;
-    // +2 protoze maximalne si pucim 2 Byty pro ByteArray
+    // +2 protoze maximalne si pucim 2 Byty pro bitArray
     assert(size > (sizeof(superBlock) + 2));
     size -= sizeof(superBlock) + 2;
     sb.blockCount = size / ((1 + pomerDataInode) / 8 + pomerDataInode * sizeof(inode) + sb.blockSize);
@@ -328,6 +346,7 @@ errorCode fileSystem::format()
         FATAL("File " << fileName << " can not be create by program. " << strerror(errno));
         return errorCode::CANNOT_CREATE_FILE;
     }
+    DEBUG("Formating");
     // superBlock
     AWRITE(0, reinterpret_cast<char*>(&sb), sizeof(superBlock));
     // inode bitArray
@@ -336,7 +355,7 @@ errorCode fileSystem::format()
     dataBlockBitArray = fileBitArray(sb.bitArrayDataBlockAddress(), sb.blockCount);
 
 #ifndef NDEBUG
-    // inode section
+    DEBUG("Writing placeholder of inodes");
     SEEKP(sb.inodeAddress());
     char placeholder[sizeof(inode)];
     std::memset(placeholder, '=', sizeof(placeholder));
@@ -348,7 +367,7 @@ errorCode fileSystem::format()
     {
         WRITE(placeholder, sizeof(placeholder));
     }
-    // data section
+    DEBUG("Writing placeholder of data blocks");
     SEEKP(sb.dataAddress());
     const size_t bsize = sb.blockSize;
     char* placeholderd = new char[bsize];
