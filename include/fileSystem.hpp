@@ -123,11 +123,20 @@ private:
 
 public:
     /**
+     * @brief Zjistreni obsahu adresare v textove podobe
+     * 
+     * @param inodeID ID adresare
+     * @param dirItems vector pro jmena
+     * @return errorCode OK|PATH NOT FOUND (neexistující adresář)
+     */
+    errorCode ls(size_type inodeID,std::vector<std::string>& dirItems);
+
+    /**
      * @brief Zalozeni adresare pod parentInnodeID
      *
      * @param dirName
      * @param parentInnodeID
-     * @return errorCode OK|EXIST|PATH NOT FOUND
+     * @return errorCode OK|EXIST (nelze založit, již existuje)|PATH NOT FOUND (neexistuje zadaná cesta)
      */
     errorCode makeDir(const char dirName[fileLiteralLenght], size_type parentInnodeID);
 

@@ -77,8 +77,8 @@ void fileSystem::createRoot()
     auto root = alocateNewInode();
     root.type = inode::dir;
     dirItem dirItems[2];
-    dirItems[0] = dirItem("..", root.id);
-    dirItems[1] = dirItem(".", root.id);
+    dirItems[0] = dirItem(".", root.id);
+    dirItems[1] = dirItem("..", root.id);
     root.fileSize += 2 * sizeof(dirItem);
     addPointer(root, alocateDataBlock());
     AWRITE(sb.inodeAddress() + root.id * sizeof(inode), reinterpret_cast<char*>(&root), sizeof(root));
@@ -149,10 +149,6 @@ bool fileSystem::addDirItem(inode& node, dirItem& item)
             {
                 return false;
             }
-            if (std::strncmp(curent.name, "", fileLiteralLenght) == 0)
-            {
-                break;
-            }
         }
     }
     pointer_type pointer;
@@ -172,6 +168,51 @@ bool fileSystem::addDirItem(inode& node, dirItem& item)
     AWRITE(sb.inodeAddress() + node.id * sizeof(inode), reinterpret_cast<char*>(&node), sizeof(inode));
     return true;
 }
+
+errorCode fileSystem::ls(size_type inodeID,std::vector<std::string>& dirItems)
+{
+    inode dir;
+    AREAD(sb.inodeAddress() + inodeID * sizeof(inode), reinterpret_cast<char*>(&dir), sizeof(inode));
+    if (dir.type != inode::inode_types::dir)
+    {
+        return errorCode::PATH_NOT_FOUND;
+    }
+    
+    std::vector<pointer_type> data;
+    getDataPointers(dir,data);
+    for (auto dataBlock : data)
+    {
+        size_t dirItemCount = sb.blockSize / sizeof(dirItem);
+        for (size_t i = 0; i < dirItemCount; i++)
+        {
+            dirItem curentDirItem;
+            inode curentInode;
+            AREAD(dataBlock + i * sizeof(dirItem),reinterpret_cast<char*>(&curentDirItem), sizeof(dirItem));            
+            if (!std::strncmp(curentDirItem.name, "", fileLiteralLenght) == 0)
+            {
+                AREAD(sb.inodeAddress() + curentDirItem.inode_id * sizeof(inode), reinterpret_cast<char*>(&curentInode), sizeof(inode));
+                std::string qname;
+                switch (curentInode.type)
+                {
+                case inode::inode_types::dir:
+                        qname.append("+");
+                    break;
+                case inode::inode_types::file:
+                        qname.append("-");
+                    break;
+                
+                default:
+                qname.append("?");
+                    break;
+                }
+                qname.append(curentDirItem.name);
+                dirItems.push_back(qname);                
+            }
+        }
+    }
+    return fileSystem::errorCode::OK;
+}
+
 
 errorCode fileSystem::makeDir(const char dirName[fileLiteralLenght], size_type parentInnodeID)
 {
@@ -194,8 +235,8 @@ errorCode fileSystem::makeDir(const char dirName[fileLiteralLenght], size_type p
 
     dir.type = inode::dir;
     dirItem dirItems[2];
-    dirItems[0] = dirItem("..", parent.id);
-    dirItems[1] = dirItem(".", dir.id);
+    dirItems[0] = dirItem(".", dir.id);
+    dirItems[1] = dirItem("..", parent.id);    
     dir.fileSize += 2 * sizeof(dirItem);
     addPointer(dir, alocateDataBlock());
     DEBUG("Creating directory with name " << newDir.name << " inode id " << parent.id << "/" << dir.id);
