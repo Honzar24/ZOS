@@ -20,6 +20,7 @@
  *
  * pokud i a b nejsou delitelne 8 tak jejich velikost je celociselne deleni + 1
  * 
+ * TODO: muzeme stanovit nejake minimalni pozadavky?
  * podminky:                                        konkretni hodnoty
  *          block size >= 2*sizeof(dirItem) <24>    => >=48
  *          block size % sizeof(pointer_type) == 0  => % 8 == 0 
@@ -30,6 +31,9 @@
  * TODO: co delat pokud dosli data bloky?
  * TODO: co delat pokud dana inoda jiz nemuze na addresovat dalsi block?
  * TODO: vypis self a parent odkazu v ls?
+ * TODO: mrdir /?
+ * TODO: bulk read / minimalizace vyuziti pameti 
+ * 
  * 
  * TODO: memory regen pri odstraneni posledni polozky v bloku
  * TODO: globalni memory regen nad inodem?

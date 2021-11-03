@@ -329,9 +329,8 @@ void fileSystem::getDirItems(inode& inode, std::vector<dirItemP>& dirItems)
     size_t dirItemCount = sb.blockSize / sizeof(dirItem);
     for (auto dataBlock : data)
     {
-        SEEKG(dataBlock);
         dirItem curent[dirItemCount];
-        READ(reinterpret_cast<char*>(curent), dirItemCount * sizeof(dirItem));
+        AREAD(dataBlock,reinterpret_cast<char*>(curent), dirItemCount * sizeof(dirItem));
         for (size_t i = 0; i < dirItemCount; i++)
         {
             if(std::strcmp(curent[i].name,"") != 0)
