@@ -3,6 +3,7 @@
 #include <fstream>
 #include <iostream>
 #include <vector>
+#include <utility>
 
 #include "superBlock.hpp"
 #include "fileBitArray.hpp"
@@ -29,6 +30,9 @@
  * TODO: co delat pokud dosli data bloky?
  * TODO: co delat pokud dana inoda jiz nemuze na addresovat dalsi block?
  * TODO: vypis self a parent odkazu v ls?
+ * 
+ * TODO: memory regen pri odstraneni posledni polozky v bloku
+ * TODO: globalni memory regen nad inodem?
  * 
  * optimalizace io / minilalizace runtime mem
  * 
@@ -85,6 +89,15 @@ private:
      */
     bool addDirItem(inode& inode, dirItem& dirItem);
     /**
+     * @brief odstrani zaznam obsahujici hodnotu removedID
+     * 
+     * @param inode 
+     * @param removedID 
+     * @return true odstaneno
+     * @return false nepodarilo se najit tento zaznam
+     */
+    bool removeDirItem(inode& inode,size_type removedID);
+    /**
      * @brief vytvori root adresar na nove zformatovanem disku
      *
      */
@@ -110,6 +123,11 @@ private:
      */
     pointer_type alocateDataBlock();
     /**
+     * @brief vycisti data block a nastavi priznak v bitArray
+     * 
+     */
+    void freeDataBlock(pointer_type dataPointer);
+    /**
      * @brief pokusi se zabrat pozadovany pocet bloku a vrati jejich id
      * pokud fs nema dostatek vrati 0 a nezabere zadny
      *
@@ -125,6 +143,13 @@ private:
      * @param pointers kam chceme pointery ulozit
      */
     void getDataPointers(inode& inode, std::vector<pointer_type>& pointers);
+    /**
+     * @brief naplni vector vsemi dirItemy v inodu
+     * 
+     * @param inode 
+     * @param dirItems 
+     */
+    void getDirItems(inode& inode, std::vector<std::pair<dirItem,pointer_type>>& dirItems);
 
 public:
     /**
@@ -141,9 +166,16 @@ public:
      *
      * @param dirName
      * @param parentInnodeID
-     * @return errorCode OK|EXIST (nelze založit, již existuje)|PATH NOT FOUND (neexistuje zadaná cesta)
+     * @return errorCode OK|EXIST (nelze zalozit, jiz existuje)|PATH NOT FOUND (neexistuje zadana cesta)
      */
-    errorCode makeDir(const char dirName[fileLiteralLenght], size_type parentInnodeID);
+    errorCode mkdir(const char dirName[fileLiteralLenght], size_type parentInnodeID);
+    /**
+     * @brief Smazani prazneho adresare
+     * 
+     * @param inodeID 
+     * @return errorCode OK|FILE NOT FOUND (neexistujici adresar)|NOT EMPTY (adresar obsahuje podadresare, nebo soubory)
+     */
+    errorCode rmdir(size_type inodeID);
 
     /**
      * @brief Propocita "nejlepsi" pocet data bloku pro velikost data bloku a pocet inodu podle pomeru viz. config
@@ -178,7 +210,7 @@ public:
     ~fileSystem() = default;
 };
 using errorCode = fileSystem::errorCode;
-inline std::ostream& operator<<(std::ostream& os, errorCode& errorCode)
+inline std::ostream& operator<<(std::ostream& os, errorCode errorCode)
 {
     switch (errorCode)
     {
