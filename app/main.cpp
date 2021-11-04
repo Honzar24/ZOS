@@ -47,14 +47,14 @@ int main(int argc, char const* argv[])
     {
         std::cout << file << std::endl;
     }
-    std::cout << fs.rmdir(30) << std::endl;
+    std::cout << fs.rmdir(20) << std::endl;
     files.clear();
     fs.ls(0,files);
     for(auto file:files)
     {
         std::cout << file << std::endl;
     }
-    std::cout << fs.rmdir(29) << std::endl;
+    std::cout << fs.rmdir(10) << std::endl;
         files.clear();
     fs.ls(0,files);
     for(auto file:files)

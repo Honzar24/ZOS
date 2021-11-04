@@ -51,7 +51,7 @@
 *   Konec sekce smrti
 */
 
-using dirItemP = std::pair<dirItem,pointer_type>; 
+using dirItemP = std::pair<dirItem, pointer_type>;
 
 
 fileSystem::fileSystem(std::string& fileName, superBlock& sb) : fileName(fileName), sb(sb), fileStream(fileName)
@@ -170,24 +170,38 @@ bool fileSystem::addDirItem(inode& node, dirItem& item)
     AWRITE(sb.inodeAddress() + node.id * sizeof(inode), reinterpret_cast<char*>(&node), sizeof(inode));
     return true;
 }
-bool fileSystem::removeDirItem(inode& inode,size_type removedID)
+bool fileSystem::removeDirItem(inode& inode, size_type removedID)
 {
     std::vector<dirItemP> dirItems;
     dirItem empty;
-    getDirItems(inode,dirItems);
+    getDirItems(inode, dirItems);
+    int removed = -1;
     for (size_t i = 0; i < dirItems.size(); i++)
     {
         if (std::get<dirItem>(dirItems[i]).inode_id == removedID)
         {
             DEBUG("Clearing dir item with name " << std::get<dirItem>(dirItems[i]).name << " in inode" << inode.id << " on address " << STREAMADDRESS(std::get<pointer_type>(dirItems[i])));
-            AWRITE(std::get<pointer_type>(dirItems[i]),reinterpret_cast<char*>(&empty),sizeof(dirItem));
+            AWRITE(std::get<pointer_type>(dirItems[i]), reinterpret_cast<char*>(&empty), sizeof(dirItem));
             inode.fileSize -= sizeof(dirItem);
-            //regen memory
-            return true;
+            removed = i;
+            break;
         }
-        
+
     }
-    return false;    
+    if (removed == -1)
+    {
+        return false;
+    }
+    if (removed + 1 == dirItems.size())
+    {
+        return true;
+    }
+    dirItem reloc;
+    AREAD(std::get<pointer_type>(dirItems[dirItems.size() - 1]), reinterpret_cast<char*>(&reloc), sizeof(dirItem));
+    AWRITE(std::get<pointer_type>(dirItems[dirItems.size() - 1]), reinterpret_cast<char*>(&empty), sizeof(dirItem));
+    DEBUG("Relocating diritem to address :" << std::get<pointer_type>(dirItems[dirItems.size() - 1]) << " from on address " << STREAMADDRESS(std::get<pointer_type>(dirItems[dirItems.size() - 1])));
+    AWRITE(std::get<pointer_type>(dirItems[removed]), reinterpret_cast<char*>(&reloc), sizeof(dirItem));
+    return true;
 }
 
 errorCode fileSystem::ls(size_type inodeID, std::vector<std::string>& dirItems)
@@ -199,30 +213,30 @@ errorCode fileSystem::ls(size_type inodeID, std::vector<std::string>& dirItems)
         return errorCode::PATH_NOT_FOUND;
     }
     std::vector<dirItemP> dirs;
-    getDirItems(dir,dirs);
-    for(auto curent:dirs)
+    getDirItems(dir, dirs);
+    for (auto curent : dirs)
     {
         if (!std::strncmp(std::get<dirItem>(curent).name, "", fileLiteralLenght) == 0)
+        {
+            inode curentInode;
+            AREAD(sb.inodeAddress() + std::get<dirItem>(curent).inode_id * sizeof(inode), reinterpret_cast<char*>(&curentInode), sizeof(inode));
+            std::string qname;
+            switch (curentInode.type)
             {
-                inode curentInode;
-                AREAD(sb.inodeAddress() + std::get<dirItem>(curent).inode_id * sizeof(inode), reinterpret_cast<char*>(&curentInode), sizeof(inode));
-                std::string qname;
-                switch (curentInode.type)
-                {
-                case inode::inode_types::dir:
-                    qname.append("+");
-                    break;
-                case inode::inode_types::file:
-                    qname.append("-");
-                    break;
+            case inode::inode_types::dir:
+                qname.append("+");
+                break;
+            case inode::inode_types::file:
+                qname.append("-");
+                break;
 
-                default:
-                    qname.append("?");
-                    break;
-                }
-                qname.append(std::get<dirItem>(curent).name);
-                dirItems.push_back(qname);
+            default:
+                qname.append("?");
+                break;
             }
+            qname.append(std::get<dirItem>(curent).name);
+            dirItems.push_back(qname);
+        }
     }
     return fileSystem::errorCode::OK;
 }
@@ -267,21 +281,17 @@ errorCode fileSystem::rmdir(size_type inodeID)
         return errorCode::PATH_NOT_FOUND;
     }
     std::vector<dirItemP> subDirs;
-    getDirItems(dir,subDirs);
-    if(subDirs.size() > 2)
+    getDirItems(dir, subDirs);
+    if (subDirs.size() > 2)
     {
         return errorCode::NOT_EMPTY;
     }
-    
     inode parent;
     AREAD(sb.inodeAddress() + std::get<dirItem>(subDirs[1]).inode_id * sizeof(inode), reinterpret_cast<char*>(&parent), sizeof(inode));
-    assert(removeDirItem(parent,dir.id));
+    assert(removeDirItem(parent, dir.id));
     AWRITE(sb.inodeAddress() + parent.id * sizeof(inode), reinterpret_cast<char*>(&parent), sizeof(inode));
-
-
     freeDataBlock(dir.pointers.direct[0]);
     freeInode(dir.id);
-
     return errorCode::OK;
 }
 
@@ -330,12 +340,12 @@ void fileSystem::getDirItems(inode& inode, std::vector<dirItemP>& dirItems)
     for (auto dataBlock : data)
     {
         dirItem curent[dirItemCount];
-        AREAD(dataBlock,reinterpret_cast<char*>(curent), dirItemCount * sizeof(dirItem));
+        AREAD(dataBlock, reinterpret_cast<char*>(curent), dirItemCount * sizeof(dirItem));
         for (size_t i = 0; i < dirItemCount; i++)
         {
-            if(std::strcmp(curent[i].name,"") != 0)
+            if (std::strcmp(curent[i].name, "") != 0)
             {
-                auto pair = std::make_pair(curent[i],dataBlock + i * sizeof(dirItem));
+                auto pair = std::make_pair(curent[i], dataBlock + i * sizeof(dirItem));
                 dirItems.push_back(pair);
             }
         }

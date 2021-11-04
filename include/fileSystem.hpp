@@ -27,18 +27,21 @@
  * 
  *
  * TODO: je mozne vytvorit soubor mensi nez pozadovana velikost?
+ *	asi jo
  * TODO: co delat pri nedostatku inodu?
  * TODO: co delat pokud dosli data bloky?
  * TODO: co delat pokud dana inoda jiz nemuze na addresovat dalsi block?
  * TODO: vypis self a parent odkazu v ls?
  * TODO: mrdir /?
- * TODO: bulk read / minimalizace vyuziti pameti 
  * 
  * 
- * TODO: memory regen pri odstraneni posledni polozky v bloku
+ * TODO: memory regen pri odstraneni posledni polozky v bloku 
+ * 	lokani vramci data bloku
  * TODO: globalni memory regen nad inodem?
+ * 	neni potreba
  * 
  * optimalizace io / minilalizace runtime mem
+ * 	optimalizace na velikost datablocku
  * 
  * 
  * padding je nepovinne pole slouzi pouze k dorovnani skutecne velikosti do pozadovane velikosti
@@ -161,7 +164,7 @@ public:
      * 
      * @param inodeID ID adresare
      * @param dirItems vector pro jmena
-     * @return errorCode OK|PATH NOT FOUND (neexistující adresář)
+     * @return errorCode OK|PATH NOT FOUND (neexistujici� adresar)
      */
     errorCode ls(size_type inodeID,std::vector<std::string>& dirItems);
 
