@@ -13,8 +13,6 @@
 *   Takto je mozno v logu primo videt z jake funkce je makro volano to to nevim jak by slo docilit pomoci funkce
 */
 
-#define STREAMADDRESS(address) "0x" << std::setw(16) << std::left << std::hex << address << std::dec
-
 #define SEEKG(pos)\
     assert((!fileStream.fail()) && "preSEEKG");\
     fileStream.seekg(pos);\
@@ -409,10 +407,10 @@ pointer_type fileSystem::alocateDataBlock()
 void fileSystem::freeDataBlock(pointer_type dataPointer)
 {
     DEBUG("Free data block on " << STREAMADDRESS(dataPointer));
+    ((dataBlockBitArray.begin()) += (dataPointer - sb.dataAddress()) / sb.blockSize).flip(fileStream);
     char empty[sb.blockSize];
     std::memset(empty, '\0', sb.blockSize);
     AWRITE(dataPointer, empty, sb.blockSize);
-    ((dataBlockBitArray.begin()) += (dataPointer - sb.dataAddress()) / sb.blockSize).flip(fileStream);
 }
 
 size_t fileSystem::alocateDataBlocks(size_t numberOfDataBlocks, std::vector<pointer_type>& pointers)
@@ -449,6 +447,8 @@ errorCode fileSystem::calcAndFormat(size_type size)
     // +2 protoze maximalne si pucim 2 Byty pro bitArray
     assert(size > (sizeof(superBlock) + 2));
     size -= sizeof(superBlock) + 2;
+    assert(sb.blockSize >= sizeof(dirItem) * 2);
+    assert(sb.blockSize % sizeof(pointer_type) == 0);
     sb.blockCount = size / ((1 + pomerDataInode) / 8 + pomerDataInode * sizeof(inode) + sb.blockSize);
     sb.inodeCount = pomerDataInode * sb.blockCount;
     assert(sb.blockCount >= minDataBlockCount);

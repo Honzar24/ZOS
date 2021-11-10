@@ -16,7 +16,8 @@ superBlock::superBlock(const char sig[maxSignatureLenght], const char desc[maxDe
     signature[maxSignatureLenght] = '\0';
     std::strncpy(description, desc, maxDescriptionLenght);
     description[maxDescriptionLenght] = '\0';
-    setupFilePointers();
+    bool setup = setupFilePointers();
+    assert(setup && "Disk is too small");
     assert(blockSize >= sizeof(dirItem) * 2);
     assert(blockSize % sizeof(pointer_type) == 0);
 }

@@ -3,10 +3,10 @@
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
-
 #include <fstream>
 #include <bitset>
 
+#include "log.hpp"
 class fileBitIterator
 {
 public:
@@ -123,7 +123,8 @@ public:
         std::bitset<8> currentByte;
         fileStream.seekg(start + byte - 1);
         fileStream.read(reinterpret_cast<char*>(&currentByte), 1);
-        currentByte[bit].flip();
+        TRACE("fliping bit " << bit << " in byte " << byte << " from " << STREAMADDRESS(start));
+        currentByte[bit].flip();        
         fileStream.seekp(start + byte - 1);
         fileStream.write(reinterpret_cast<char*>(&currentByte), 1);
     }
@@ -132,6 +133,7 @@ public:
         std::bitset<8> currentByte;
         fileStream.seekg(start + byte - 1);
         fileStream.read(reinterpret_cast<char*>(&currentByte), 1);
+        TRACE("fliping byte " << byte << " from " << STREAMADDRESS(start));
         currentByte.flip();
         fileStream.seekp(start + byte - 1);
         fileStream.write(reinterpret_cast<char*>(&currentByte), 1);
@@ -150,6 +152,7 @@ public:
         fileStream.seekg(start + byte - 1);
         std::bitset<8> cByte;
         fileStream.read(reinterpret_cast<char*>(&cByte), 1);
+        TRACE("reading bit " << bit << " in byte " << byte << " from " << STREAMADDRESS(start));
         return cByte[bit];
     }
     inline bool operator==(fileBitIterator o)

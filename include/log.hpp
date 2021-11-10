@@ -31,9 +31,11 @@ inline std::string getLogLevelLiteral(LOG_LEVEL level)
 
 #ifndef NLOG
 #define __FILENAME__ (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
-#define MAXfilenameLenght 10
+#define MAXfilenameLenght 16
 #define MAXlevelLenght 6
 #define MAXlineLenght 5
+
+#define STREAMADDRESS(address) "0x" << std::setw(16) << std::left << std::hex << address << std::dec
 
 extern std::fstream LOGSTREAM;
 
