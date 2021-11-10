@@ -41,13 +41,40 @@ private:
     pointer_type data_address;
 
 public:
-
-    superBlock(const char[maxSignatureLenght], const char[maxDescriptionLenght], size_type diskSize, size_type blockSize, size_type inodeCount, size_type blockCount);
-    inline superBlock(const char sig[maxSignatureLenght], const char desc[maxDescriptionLenght], size_type blockSize, size_type inodeCount, size_type blockCount) :superBlock(sig, desc, 0, blockSize, inodeCount, blockCount) {};
-    inline superBlock(size_type diskSize, size_type blockSize) : superBlock(defaulSignature, defaulDescription, diskSize, blockSize, defaultInodeCount, defaultBlockCount) {};
-    inline superBlock(size_type diskSize) : superBlock(diskSize, defaultBlockSize) {};
     /**
-     * @brief Vytvori superBlock s parametry 0 az na block size ktery je nastaven na zakladni hodnotu viz config
+     * @brief Vytvori pouzitelny super block pro dane prametry pokud to nelze 
+     *
+     * @param sig
+     * @param desc
+     * @param diskSize
+     * @param blockSize
+     * @param inodeCount
+     * @param blockCount
+     */
+    superBlock(const char sig[maxSignatureLenght], const char desc[maxDescriptionLenght], size_type diskSize, size_type blockSize, size_type inodeCount, size_type blockCount);
+    /**
+     * @brief Vytvori pouzitelny super block pro dane prametry a dopocita jak velky diskovi prostu je potreba
+     *
+     * @param sig 
+     * @param desc
+     * @param blockSize
+     * @param inodeCount
+     * @param blockCount
+     */
+    inline superBlock(const char sig[maxSignatureLenght], const char desc[maxDescriptionLenght], size_type blockSize, size_type inodeCount, size_type blockCount) :superBlock(sig, desc, 0, blockSize, inodeCount, blockCount) {};
+
+
+    inline superBlock(size_type diskSize, size_type blockSize) : superBlock()
+    {
+        this->diskSize = diskSize;
+        this->blockSize = blockSize;
+    };
+    inline superBlock(size_type diskSize) : superBlock()
+    {
+        this->diskSize = diskSize;
+    };
+    /**
+     * @brief Vytvori superBlock s parametry 0 az na block size
      *
      */
     superBlock();
