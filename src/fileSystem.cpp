@@ -204,19 +204,31 @@ errorCode fileSystem::cp(size_type srcInodeID, size_type destInodeID)
 {
     inode src, dest;
     AREAD(sb.inodeAddress() + srcInodeID * sizeof(inode), reinterpret_cast<char*>(&src), sizeof(inode));
-    if(src.type != inode::inode_types::file)
+    if (src.type != inode::inode_types::file)
     {
         return errorCode::FILE_NOT_FOUND;
     }
     AREAD(sb.inodeAddress() + destInodeID * sizeof(inode), reinterpret_cast<char*>(&dest), sizeof(inode));
-    if(dest.type != src.type)
+    if (dest.type != src.type)
     {
         return errorCode::PATH_NOT_FOUND;
     }
     auto data = getDataPointers(src);
     auto nData = alocateDataBlocks(data.size());
-    
-
+    if (data.size() > nData.size())
+    {
+        FATAL("Can not copy file not have enough free space");
+        return errorCode::CANNOT_CREATE_FILE;
+    }
+    for (size_t i = 0; i < data.size(); i++)
+    {
+        char current[sb.blockSize];
+        AREAD(data[i], current, sb.blockSize);
+        AWRITE(nData[i], current, sb.blockSize);
+        addPointer(dest,nData[i]);
+    }
+    dest.fileSize = src.fileSize;
+    return errorCode::OK;
 }
 
 errorCode fileSystem::ls(size_type inodeID, std::vector<std::string>& dirItems)
@@ -433,7 +445,7 @@ void fileSystem::freeDataBlock(pointer_type dataPointer)
 
 std::vector<pointer_type> fileSystem::alocateDataBlocks(size_t numberOfDataBlocks)
 {
-    
+
     std::vector<size_type> blockID;
     auto it = dataBlockBitArray.begin();
     size_type index = 0;
@@ -447,7 +459,7 @@ std::vector<pointer_type> fileSystem::alocateDataBlocks(size_t numberOfDataBlock
         index++;
         it++;
     }
-    
+
     if (numberOfDataBlocks > 0)
     {
         return std::vector<pointer_type>();
