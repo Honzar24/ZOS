@@ -124,7 +124,7 @@ public:
         fileStream.seekg(start + byte - 1);
         fileStream.read(reinterpret_cast<char*>(&currentByte), 1);
         TRACE("fliping bit " << bit << " in byte " << byte << " from " << STREAMADDRESS(start));
-        currentByte[bit].flip();        
+        currentByte[bit].flip();
         fileStream.seekp(start + byte - 1);
         fileStream.write(reinterpret_cast<char*>(&currentByte), 1);
     }

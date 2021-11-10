@@ -42,7 +42,7 @@ private:
 
 public:
     /**
-     * @brief Vytvori pouzitelny super block pro dane prametry pokud to nelze 
+     * @brief Vytvori pouzitelny super block pro dane prametry pokud to nelze
      *
      * @param sig
      * @param desc
@@ -55,7 +55,7 @@ public:
     /**
      * @brief Vytvori pouzitelny super block pro dane prametry a dopocita jak velky diskovi prostu je potreba
      *
-     * @param sig 
+     * @param sig
      * @param desc
      * @param blockSize
      * @param inodeCount

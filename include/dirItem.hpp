@@ -13,7 +13,8 @@ public:
     //Prizazeny inode
     size_type inode_id;
 
-    inline dirItem() {
+    inline dirItem()
+    {
         memset(this->name, '\0', fileLiteralLenght);
         inode_id = 0;
     };
