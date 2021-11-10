@@ -11,6 +11,44 @@ void printArgsHelp(char const argv[])
     std::cout << argv << " <FsFile>" << std::endl;
 }
 
+/**
+ * @brief vypise obsah souboru jako text
+ *
+ * @param fileName
+ */
+void cat(std::string fileName) {}
+/**
+ * @brief zmeni aktualni umisteni na zadane umisteni
+ *
+ * @param path new current path
+ */
+void cd(std::string path) {}
+/**
+ * @brief vypise cestu od root adresare k aktualnimu umisteni
+ *
+ */
+void pwd() {}
+/**
+ * @brief vytvori kopii souboru z disku do VFS
+ *
+ * @param fileName
+ * @param VFileName
+ */
+void incp(std::string fileName, std::string VFileName) {}
+/**
+ * @brief vytvori kopii souboru z VFS na disk
+ *
+ * @param VFileName
+ * @param fileName
+ */
+void outcp(std::string VFileName, std::string fileName) {}
+/**
+ * @brief nacita prikazy ze souboru
+ *
+ * @param fileName
+ */
+void load(std::string fileName) {}
+
 int main(int argc, char const* argv[])
 {
     if (argc < 2 || argc > 2)
@@ -21,13 +59,11 @@ int main(int argc, char const* argv[])
     LOGINIT("main.log");
 
     std::string fileName(argv[1]);
-    superBlock sb(defaulSignature, defaulDescription, 56, 100, 200);
-    //fileSystem fs(fileName, sb);
-    fileSystem fs(fileName);
-    // zarovani sekci do 16 bloku
-    // fs.calcAndFormat(103*1024);
-    fs.calcAndFormat(103 * 1024);
-    
+    //superBlock sb(defaulSignature, defaulDescription, 56, 100, 200);
+    superBlock sb(103 * 1024);
+    fileSystem fs(fileName, sb);
+
+
     for (size_t i = 0; i < 30; i++)
     {
         std::string newDir("dir ");
@@ -42,22 +78,22 @@ int main(int argc, char const* argv[])
         }
     }
     std::vector<std::string> files;
-    fs.ls(0,files);
-    for(auto file:files)
+    fs.ls(0, files);
+    for (auto file : files)
     {
         std::cout << file << std::endl;
     }
     std::cout << fs.rmdir(20) << std::endl;
     files.clear();
-    fs.ls(0,files);
-    for(auto file:files)
+    fs.ls(0, files);
+    for (auto file : files)
     {
         std::cout << file << std::endl;
     }
     std::cout << fs.rmdir(10) << std::endl;
-        files.clear();
-    fs.ls(0,files);
-    for(auto file:files)
+    files.clear();
+    fs.ls(0, files);
+    for (auto file : files)
     {
         std::cout << file << std::endl;
     }

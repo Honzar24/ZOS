@@ -19,32 +19,33 @@
  * | sizeof(superBlock) | i/8(+1) | b/8(+1) | i * sizeof(inode) | b * blockSize | padding |
  *
  * pokud i a b nejsou delitelne 8 tak jejich velikost je celociselne deleni + 1
- * 
- * TODO: muzeme stanovit nejake minimalni pozadavky?
+ *
+ * padding je nepovinne pole slouzi pouze k dorovnani skutecne velikosti do pozadovane velikosti
+ *
+ * : muzeme stanovit nejake minimalni pozadavky?
+ * jiste
  * podminky:                                        konkretni hodnoty
  *          block size >= 2*sizeof(dirItem) <24>    => >=48
- *          block size % sizeof(pointer_type) == 0  => % 8 == 0 
- * 
+ *          block size % sizeof(pointer_type) == 0  => % 8 == 0
  *
- * TODO: je mozne vytvorit soubor mensi nez pozadovana velikost?
+ *
+ * : je mozne vytvorit soubor mensi nez pozadovana velikost?
  *	asi jo
  * TODO: co delat pri nedostatku inodu?
  * TODO: co delat pokud dosli data bloky?
  * TODO: co delat pokud dana inoda jiz nemuze na addresovat dalsi block?
  * TODO: vypis self a parent odkazu v ls?
  * TODO: mrdir /?
- * 
- * 
- * TODO: memory regen pri odstraneni posledni polozky v bloku 
+ *
+ *
+ * : memory regen pri odstraneni posledni polozky v bloku
  * 	lokani vramci data bloku
- * TODO: globalni memory regen nad inodem?
+ * : globalni memory regen nad inodem?
  * 	neni potreba
- * 
+ *
  * optimalizace io / minilalizace runtime mem
  * 	optimalizace na velikost datablocku
- * 
- * 
- * padding je nepovinne pole slouzi pouze k dorovnani skutecne velikosti do pozadovane velikosti
+ *
  *
  */
 
@@ -73,37 +74,37 @@ private:
     fileBitArray dataBlockBitArray;
     /**
      * @brief prida pointer do databloku
-     * 
-     * @param pointer 
+     *
+     * @param pointer
      * @return true ano podarilo se pridat
      * @return false nepodarilo
      */
     bool addToIndirect(pointer_type pointer);
     /**
      * @brief pokusi se pridat pointer k inodu
-     * 
-     * @param inode 
-     * @param pointer 
+     *
+     * @param inode
+     * @param pointer
      */
     void addPointer(inode& inode, pointer_type pointer);
     /**
      * @brief prida zaznam do data bloku o novem soubodu v adresari
-     * 
-     * @param inode 
-     * @param dirItem 
+     *
+     * @param inode
+     * @param dirItem
      * @return true pridano
      * @return false nelze pridat uz dany literal je obsazen
      */
     bool addDirItem(inode& inode, dirItem& dirItem);
     /**
      * @brief odstrani zaznam obsahujici hodnotu removedID
-     * 
-     * @param inode 
-     * @param removedID 
+     *
+     * @param inode
+     * @param removedID
      * @return true odstaneno
      * @return false nepodarilo se najit tento zaznam
      */
-    bool removeDirItem(inode& inode,size_type removedID);
+    bool removeDirItem(inode& inode, size_type removedID);
     /**
      * @brief vytvori root adresar na nove zformatovanem disku
      *
@@ -131,7 +132,7 @@ private:
     pointer_type alocateDataBlock();
     /**
      * @brief vycisti data block a nastavi priznak v bitArray
-     * 
+     *
      */
     void freeDataBlock(pointer_type dataPointer);
     /**
@@ -152,47 +153,87 @@ private:
     void getDataPointers(inode& inode, std::vector<pointer_type>& pointers);
     /**
      * @brief naplni vector vsemi dirItemy v inodu
-     * 
-     * @param inode 
-     * @param dirItems 
+     *
+     * @param inode
+     * @param dirItems
      */
-    void getDirItems(inode& inode, std::vector<std::pair<dirItem,pointer_type>>& dirItems);
+    void getDirItems(inode& inode, std::vector<std::pair<dirItem, pointer_type>>& dirItems);
+
+    /**
+ * @brief Propocita "nejlepsi" pocet data bloku pro velikost data bloku a pocet inodu podle pomeru viz. config
+ * ze superBloku se vyuzije pouze block size zbyle parametry se dopocitaji nebo doplni z configu
+ *
+ * @param size velikost vysledneho file systemu
+ * @return true vse vporadku system byl naformatovan
+ * @return false takovy file system nelze setrojit nebo zapsat
+ */
+    errorCode calcAndFormat(size_type size);
 
 public:
-    /**
-     * @brief Zjistreni obsahu adresare v textove podobe
-     * 
-     * @param inodeID ID adresare
-     * @param dirItems vector pro jmena
-     * @return errorCode OK|PATH NOT FOUND (neexistujici� adresar)
-     */
-    errorCode ls(size_type inodeID,std::vector<std::string>& dirItems);
 
     /**
-     * @brief Zalozeni adresare pod parentInnodeID
+     * @brief kopiruje src do dest
      *
-     * @param dirName
-     * @param parentInnodeID
-     * @return errorCode OK|EXIST (nelze zalozit, jiz existuje)|PATH NOT FOUND (neexistuje zadana cesta)
+     * @param srcInodeID
+     * @param destInodeID
+     * @return errorCode
      */
+    errorCode cp(size_type srcInodeID, size_type destInodeID);
+    /**
+     * @brief prejmenuje src na dest nebo presune src do dest adresare
+     *
+     * @param srcInodeID
+     * @param destInodeID
+     * @return errorCode
+     */
+    errorCode mv(size_type srcInodeID, size_type destInodeID);
+    /**
+     * @brief maze soubor
+     *
+     * @param inodeID
+     * @return errorCode
+     */
+    errorCode rm(size_type inodeID);
+
+    /**
+    * @brief Zalozeni adresare pod parentInnodeID
+    *
+    * @param dirName
+    * @param parentInnodeID
+    * @return errorCode OK|EXIST (nelze zalozit, jiz existuje)|PATH NOT FOUND (neexistuje zadana cesta)
+    */
     errorCode mkdir(const char dirName[fileLiteralLenght], size_type parentInnodeID);
+
     /**
      * @brief Smazani prazneho adresare
-     * 
-     * @param inodeID 
+     *
+     * @param inodeID
      * @return errorCode OK|FILE NOT FOUND (neexistujici adresar)|NOT EMPTY (adresar obsahuje podadresare, nebo soubory)
      */
     errorCode rmdir(size_type inodeID);
 
     /**
-     * @brief Propocita "nejlepsi" pocet data bloku pro velikost data bloku a pocet inodu podle pomeru viz. config
-     * ze superBloku se vyuzije pouze block size zbyle parametry se dopocitaji nebo doplni z configu
+     * @brief Zjistreni obsahu adresare v textove podobe
      *
-     * @param size velikost vysledneho file systemu
-     * @return true vse vporadku system byl naformatovan
-     * @return false takovy file system nelze setrojit nebo zapsat
+     * @param inodeID ID adresare
+     * @param dirItems vector pro vysledek
+     * @return errorCode OK|PATH NOT FOUND (neexistujici adresar)
      */
-    errorCode calcAndFormat(size_type size);
+    errorCode ls(size_type inodeID, std::vector<std::string>& dirItems);
+
+    //TODO: co tohle ma delat?
+    errorCode info();
+
+    /**
+     * @brief vytvori hard link na soubor src do souboru dest
+     *
+     * @param src soubor inodeID
+     * @param dest soubor inodeID k prepsani
+     * @return errorCode
+     */
+    errorCode ln(size_type src, size_type dest);
+
+
     /**
      * @brief podle nastaveni v superbloku naformatuje soubor
      *
