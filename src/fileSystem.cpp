@@ -135,8 +135,7 @@ void fileSystem::addPointer(inode& inode, pointer_type pointer)
 }
 bool fileSystem::addDirItem(inode& node, dirItem& item)
 {
-    std::vector<pointer_type>data;
-    getDataPointers(node, data);
+    std::vector<pointer_type>data = getDataPointers(node);
     size_t dirItemCount = sb.blockSize / sizeof(dirItem);
     for (auto dataBlock : data)
     {
@@ -170,9 +169,8 @@ bool fileSystem::addDirItem(inode& node, dirItem& item)
 }
 bool fileSystem::removeDirItem(inode& inode, size_type removedID)
 {
-    std::vector<dirItemP> dirItems;
     dirItem empty;
-    getDirItems(inode, dirItems);
+    std::vector<dirItemP> dirItems = getDirItems(inode);
     int removed = -1;
     for (size_t i = 0; i < dirItems.size(); i++)
     {
@@ -202,6 +200,25 @@ bool fileSystem::removeDirItem(inode& inode, size_type removedID)
     return true;
 }
 
+errorCode fileSystem::cp(size_type srcInodeID, size_type destInodeID)
+{
+    inode src, dest;
+    AREAD(sb.inodeAddress() + srcInodeID * sizeof(inode), reinterpret_cast<char*>(&src), sizeof(inode));
+    if(src.type != inode::inode_types::file)
+    {
+        return errorCode::FILE_NOT_FOUND;
+    }
+    AREAD(sb.inodeAddress() + destInodeID * sizeof(inode), reinterpret_cast<char*>(&dest), sizeof(inode));
+    if(dest.type != src.type)
+    {
+        return errorCode::PATH_NOT_FOUND;
+    }
+    auto data = getDataPointers(src);
+    auto nData = alocateDataBlocks(data.size());
+    
+
+}
+
 errorCode fileSystem::ls(size_type inodeID, std::vector<std::string>& dirItems)
 {
     inode dir;
@@ -210,8 +227,7 @@ errorCode fileSystem::ls(size_type inodeID, std::vector<std::string>& dirItems)
     {
         return errorCode::PATH_NOT_FOUND;
     }
-    std::vector<dirItemP> dirs;
-    getDirItems(dir, dirs);
+    std::vector<dirItemP> dirs = getDirItems(dir);
     for (auto curent : dirs)
     {
         if (!std::strncmp(std::get<dirItem>(curent).name, "", fileLiteralLenght) == 0)
@@ -278,8 +294,7 @@ errorCode fileSystem::rmdir(size_type inodeID)
     {
         return errorCode::PATH_NOT_FOUND;
     }
-    std::vector<dirItemP> subDirs;
-    getDirItems(dir, subDirs);
+    std::vector<dirItemP> subDirs = getDirItems(dir);
     if (subDirs.size() > 2)
     {
         return errorCode::NOT_EMPTY;
@@ -293,8 +308,9 @@ errorCode fileSystem::rmdir(size_type inodeID)
     return errorCode::OK;
 }
 
-void fileSystem::getDataPointers(inode& inode, std::vector<pointer_type>& pointers)
+std::vector<pointer_type> fileSystem::getDataPointers(inode& inode)
 {
+    std::vector<pointer_type> pointers;
     for (size_t i = 0; i < directPointersCount; i++)
     {
         if (inode.pointers.direct[i] != 0)
@@ -302,7 +318,7 @@ void fileSystem::getDataPointers(inode& inode, std::vector<pointer_type>& pointe
             pointers.push_back(inode.pointers.direct[i]);
         } else
         {
-            return;
+            return pointers;
         }
 
     }
@@ -311,7 +327,7 @@ void fileSystem::getDataPointers(inode& inode, std::vector<pointer_type>& pointe
     {
         if (inode.pointers.indirect[i] == 0)
         {
-            return;
+            return pointers;
         }
         pointer_type dataPointres[pointerCount];
         AREAD(inode.pointers.indirect[i], reinterpret_cast<char*>(dataPointres), pointerCount * sizeof(pointer_type));
@@ -325,15 +341,16 @@ void fileSystem::getDataPointers(inode& inode, std::vector<pointer_type>& pointe
     }
     FATAL("File is bigger than inode can address");
     assert(false);
+    return pointers;
 }
-void fileSystem::getDirItems(inode& inode, std::vector<dirItemP>& dirItems)
+std::vector<dirItemP> fileSystem::getDirItems(inode& inode)
 {
+    std::vector<dirItemP> dirItems;
     if (inode.type != inode::inode_types::dir)
     {
-        return;
+        return dirItems;
     }
-    std::vector<pointer_type> data;
-    getDataPointers(inode, data);
+    std::vector<pointer_type> data = getDataPointers(inode);
     size_t dirItemCount = sb.blockSize / sizeof(dirItem);
     for (auto dataBlock : data)
     {
@@ -348,6 +365,7 @@ void fileSystem::getDirItems(inode& inode, std::vector<dirItemP>& dirItems)
             }
         }
     }
+    return dirItems;
 }
 
 inode fileSystem::alocateNewInode()
@@ -413,8 +431,9 @@ void fileSystem::freeDataBlock(pointer_type dataPointer)
     AWRITE(dataPointer, empty, sb.blockSize);
 }
 
-size_t fileSystem::alocateDataBlocks(size_t numberOfDataBlocks, std::vector<pointer_type>& pointers)
+std::vector<pointer_type> fileSystem::alocateDataBlocks(size_t numberOfDataBlocks)
 {
+    
     std::vector<size_type> blockID;
     auto it = dataBlockBitArray.begin();
     size_type index = 0;
@@ -428,17 +447,19 @@ size_t fileSystem::alocateDataBlocks(size_t numberOfDataBlocks, std::vector<poin
         index++;
         it++;
     }
+    
     if (numberOfDataBlocks > 0)
     {
-        return 0;
+        return std::vector<pointer_type>();
     }
+    std::vector<pointer_type> pointers = std::vector<pointer_type>(blockID.size());
     for (size_t index : blockID)
     {
         pointers.push_back(sb.dataAddress() + index * sb.blockSize);
         (dataBlockBitArray.begin() += index).flip(fileStream);
 
     }
-    return blockID.size();
+    return pointers;
 }
 
 errorCode fileSystem::calcAndFormat(size_type size)

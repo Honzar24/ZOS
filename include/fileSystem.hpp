@@ -140,33 +140,31 @@ private:
      * pokud fs nema dostatek vrati 0 a nezabere zadny
      *
      * @param numberOfDataBlocks pocet pozadovanych bloku
-     * @param vector vector pro ulozeni pointeru
-     * @return size_t 0 pocet zabranych bloku
+     * @return vector pointeru jeho velikost je rovna pocetu zabranych bloku
      */
-    size_t alocateDataBlocks(size_t numberOfDataBlocks, std::vector<pointer_type>& vector);
+    std::vector<pointer_type> alocateDataBlocks(size_t numberOfDataBlocks);
     /**
      * @brief vytvori vector data bloku ktere se vazou k danemu inodu
      *
      * @param inode
-     * @param pointers kam chceme pointery ulozit
+     * @return vector pointeru na nove zabrane data blocky
      */
-    void getDataPointers(inode& inode, std::vector<pointer_type>& pointers);
+    std::vector<pointer_type> getDataPointers(inode& inode);
     /**
      * @brief naplni vector vsemi dirItemy v inodu
      *
      * @param inode
-     * @param dirItems
+     * @return vector vsech dir itemu patrici k danemu inodu
      */
-    void getDirItems(inode& inode, std::vector<std::pair<dirItem, pointer_type>>& dirItems);
-
+    std::vector<std::pair<dirItem, pointer_type>> getDirItems(inode& inode);
     /**
- * @brief Propocita "nejlepsi" pocet data bloku pro velikost data bloku a pocet inodu podle pomeru viz. config
- * ze superBloku se vyuzije pouze block size zbyle parametry se dopocitaji nebo doplni z configu
- *
- * @param size velikost vysledneho file systemu
- * @return true vse vporadku system byl naformatovan
- * @return false takovy file system nelze setrojit nebo zapsat
- */
+     * @brief Propocita "nejlepsi" pocet data bloku pro velikost data bloku a pocet inodu podle pomeru viz. config
+     * ze superBloku se vyuzije pouze block size zbyle parametry se dopocitaji nebo doplni z configu
+     *
+     * @param size velikost vysledneho file systemu
+     * @return true vse vporadku system byl naformatovan
+     * @return false takovy file system nelze setrojit nebo zapsat
+     */
     errorCode calcAndFormat(size_type size);
 
 public:
@@ -176,7 +174,7 @@ public:
      *
      * @param srcInodeID
      * @param destInodeID
-     * @return errorCode
+     * @return errorCode OK |FILE NOT FOUND (neni zdroj) |PATH NOT FOUND (neexistuje cilova cesta)
      */
     errorCode cp(size_type srcInodeID, size_type destInodeID);
     /**
@@ -221,7 +219,9 @@ public:
      */
     errorCode ls(size_type inodeID, std::vector<std::string>& dirItems);
 
-    //TODO: co tohle ma delat?
+    /*
+    TODO: co tohle ma delat?
+    */
     errorCode info();
 
     /**
@@ -240,6 +240,7 @@ public:
      * @return errorCode
      */
     errorCode format();
+
     /**
      * @brief naformatuje soubor podle pozadavku superbloku
      *  A) je zadana pozadovana velikost disku diskSize != 0 nastaveni ostatnich parametru viz, config
@@ -249,12 +250,14 @@ public:
      * @param sb
      */
     fileSystem(std::string& fileName, superBlock& sb);
+
     /**
      * @brief pokusi se nacist jiz vytvoreni filesytem
      *
      * @param fileName jmeno souboru filesystemu
      */
     fileSystem(std::string& fileName);
+
     ~fileSystem() = default;
 };
 using errorCode = fileSystem::errorCode;
