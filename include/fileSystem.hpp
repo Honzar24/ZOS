@@ -122,7 +122,7 @@ private:
      *
      * @param inodeId inodeId
      */
-    void freeInode(size_type inodeId);
+    void freeInode(inode& inode);
     /**
      * @brief zabere jeden datablock
      * pokud neni dostatek mista na disku ukonci program
@@ -189,18 +189,20 @@ public:
     /**
      * @brief prejmenuje src na dest nebo presune src do dest adresare
      *
+     * @param parentID
      * @param srcInodeID
      * @param destInodeID
      * @return errorCode
      */
-    errorCode mv(size_type srcInodeID, size_type destInodeID);
+    errorCode mv(size_type parentID,size_type srcInodeID, size_type destInodeID);
     /**
      * @brief maze soubor
      *
+     * @param parentID
      * @param inodeID
      * @return errorCode
      */
-    errorCode rm(size_type inodeID);
+    errorCode rm(size_type parentID,size_type inodeID);
 
     /**
     * @brief Zalozeni adresare pod parentInnodeID

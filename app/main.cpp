@@ -60,7 +60,7 @@ int main(int argc, char const* argv[])
 
     std::string fileName(argv[1]);
     //superBlock sb(defaulSignature, defaulDescription, 56, 100, 200);
-    superBlock sb(103 * 1024,64);
+    superBlock sb(103 * 1024,128);
     fileSystem fs(fileName, sb);
     std::vector<std::string> files;
 
@@ -101,7 +101,11 @@ int main(int argc, char const* argv[])
 
     std::cout << fs.touch(0,"test","00000000111111112222222333333334444444555555555555555544444443333333322222221111111100000000") << std::endl;
     std::cout << fs.touch(0,"testcp") << std::endl;
+    std::cout << fs.touch(0,"testmv") << std::endl;
     std::cout << fs.cp(1,2) << std::endl;
+    std::cout << fs.mv(0,1,3) << std::endl;
+    std::cout << fs.rm(0,1) << std::endl;
+    std::cout << fs.rm(0,2) << std::endl;
     files.clear();
     fs.ls(0, files);
     for (auto file : files)

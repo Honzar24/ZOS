@@ -202,6 +202,7 @@ bool fileSystem::removeDirItem(inode& inode, size_type removedID)
 
 errorCode fileSystem::touch(size_type dirID, const char fileName[maxFileNameLenght], const char data[])
 {
+    DEBUG("Creating file");
     inode parent, file;
     file = alocateNewInode();
     if (file.id == 0)
@@ -214,26 +215,26 @@ errorCode fileSystem::touch(size_type dirID, const char fileName[maxFileNameLeng
     dirItem dirItem(fileName, file.id);
     if (!addDirItem(parent, dirItem))
     {
-        FATAL("Parrent dir is full can not add file");
-        freeInode(file.id);
+        ERROR("Parrent dir is full can not add file");
+        freeInode(file);
         return errorCode::CANNOT_CREATE_FILE;
     }
     int blockCount = file.fileSize % sb.blockSize == 0 ? file.fileSize / sb.blockSize : file.fileSize / sb.blockSize + 1;
     auto dataP = alocateDataBlocks(blockCount);
     if (dataP.size() == 0 && blockCount != 0)
     {
-        FATAL("Can not create file not have enough free space");
-        freeInode(file.id);
+        ERROR("Can not create file not have enough free space");
+        freeInode(file);
         return errorCode::CANNOT_CREATE_FILE;
     }
     for (size_t i = 0; i < blockCount; i++)
     {
         char current[sb.blockSize];
-        std::memset(current,'\0',sb.blockSize);
-        std::strncpy(current,data,sb.blockSize);
+        std::memset(current, '\0', sb.blockSize);
+        std::strncpy(current, data, sb.blockSize);
         AWRITE(dataP[i], current, sb.blockSize);
         data += sb.blockSize;
-        addPointer(file,dataP[i]);
+        addPointer(file, dataP[i]);
     }
     AWRITE(sb.inodeAddress() + file.id * sizeof(inode), reinterpret_cast<char*>(&file), sizeof(inode));
     return errorCode::OK;
@@ -268,6 +269,62 @@ errorCode fileSystem::cp(size_type srcInodeID, size_type destInodeID)
         addPointer(dest, nData[i]);
     }
     dest.fileSize = src.fileSize;
+    AWRITE(sb.inodeAddress() + dest.id * sizeof(inode), reinterpret_cast<char*>(&dest), sizeof(inode));
+    return errorCode::OK;
+}
+
+errorCode fileSystem::mv(size_type parentID, size_type srcInodeID, size_type destInodeID)
+{
+    inode src, dest, parent;
+    AREAD(sb.inodeAddress() + srcInodeID * sizeof(inode), reinterpret_cast<char*>(&src), sizeof(inode));
+    if (src.type != inode::inode_types::file && src.type != inode::inode_types::dir)
+    {
+        DEBUG("mv can not move inode that is not file or directory");
+        return errorCode::FILE_NOT_FOUND;
+    }
+    AREAD(sb.inodeAddress() + destInodeID * sizeof(inode), reinterpret_cast<char*>(&dest), sizeof(inode));
+    if (dest.type != src.type)
+    {
+        DEBUG("mv can not move the incompatible inode types");
+        return errorCode::PATH_NOT_FOUND;
+    }
+    AREAD(sb.inodeAddress() + parentID * sizeof(inode), reinterpret_cast<char*>(&parent), sizeof(inode));
+    if (!removeDirItem(parent, src.id))
+    {
+        DEBUG("mv parent can not remove the src inode");
+        return errorCode::FILE_NOT_FOUND;
+    }
+    DEBUG("Moving file inode(" << srcInodeID << ") to file inode(" << destInodeID << ")");
+    auto data = getDataPointers(src);
+    dest.pointers = src.pointers;
+    dest.fileSize = src.fileSize;
+    dest.numHardLinks = src.numHardLinks;
+    AWRITE(sb.inodeAddress() + dest.id * sizeof(inode), reinterpret_cast<char*>(&dest), sizeof(inode));
+    freeInode(src);
+    return errorCode::OK;
+}
+
+errorCode fileSystem::rm(size_type parentID, size_type inodeID)
+{
+    inode inode, parent, empty;
+    AREAD(sb.inodeAddress() + inodeID * sizeof(inode), reinterpret_cast<char*>(&inode), sizeof(inode));
+    AREAD(sb.inodeAddress() + parentID * sizeof(inode), reinterpret_cast<char*>(&parent), sizeof(inode));
+    if (inode.type != inode::inode_types::file)
+    {
+        return errorCode::FILE_NOT_FOUND;
+    }
+    if (!removeDirItem(parent, inodeID))
+    {
+        return errorCode::FILE_NOT_FOUND;
+    }
+    DEBUG("Removing file with inode(" << inodeID << ") from dir with inode(" << parentID << ")");
+    auto data = getDataPointers(inode);
+    for (auto pointer : data)
+    {
+        freeDataBlock(pointer);
+    }
+    freeInode(inode);
+    AWRITE(sb.inodeAddress() + inode.id * sizeof(inode), reinterpret_cast<char*>(&empty), sizeof(inode));
     return errorCode::OK;
 }
 
@@ -322,7 +379,7 @@ errorCode fileSystem::mkdir(const char dirName[fileLiteralLenght], size_type par
     dirItem newDir(dirName, dir.id);
     if (!addDirItem(parent, newDir))
     {
-        freeInode(dir.id);
+        freeInode(dir);
         return errorCode::EXIST;
     }
 
@@ -353,10 +410,11 @@ errorCode fileSystem::rmdir(size_type inodeID)
     }
     inode parent;
     AREAD(sb.inodeAddress() + std::get<dirItem>(subDirs[1]).inode_id * sizeof(inode), reinterpret_cast<char*>(&parent), sizeof(inode));
-    assert(removeDirItem(parent, dir.id));
+    bool remove = removeDirItem(parent, dir.id);
+    assert(remove || "removeDirItem");
     AWRITE(sb.inodeAddress() + parent.id * sizeof(inode), reinterpret_cast<char*>(&parent), sizeof(inode));
     freeDataBlock(dir.pointers.direct[0]);
-    freeInode(dir.id);
+    freeInode(dir);
     return errorCode::OK;
 }
 
@@ -437,8 +495,9 @@ inode fileSystem::alocateNewInode()
     return inode(0);
 }
 
-void fileSystem::freeInode(size_type inodeId)
+void fileSystem::freeInode(inode& inode)
 {
+    size_type inodeId = inode.id;
     DEBUG("Free inode " << inodeId);
     (inodeBitArray.begin() += inodeId).flip(fileStream);
     char empty[sizeof(inode)];
