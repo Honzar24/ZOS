@@ -9,8 +9,8 @@
 
 /*
 *   Sekce smrti pozor
-*   Ano makra. Proc? Tato konstrukce je vyuzivana k debugu bez pouuziti runtime debugeru pouze za pomoci logu programu
-*   Takto je mozno v logu primo videt z jake funkce je makro volano to to nevim jak by slo docilit pomoci funkce bez slozite konstrukce
+*   Ano makra. Proc? Tato konstrukce je vyuzivana k debugu bez pouziti runtime debugeru pouze za pomoci logu programu
+*   Takto je mozno v logu primo videt z jake funkce je makro volano to to nevim jak by slo docilit pomoci funkce
 */
 
 #define STREAMADDRESS(address) "0x" << std::setw(16) << std::left << std::hex << address << std::dec
@@ -199,7 +199,7 @@ bool fileSystem::removeDirItem(inode& inode, size_type removedID)
     dirItem reloc;
     AREAD(std::get<pointer_type>(dirItems[dirItems.size() - 1]), reinterpret_cast<char*>(&reloc), sizeof(dirItem));
     AWRITE(std::get<pointer_type>(dirItems[dirItems.size() - 1]), reinterpret_cast<char*>(&empty), sizeof(dirItem));
-    DEBUG("Relocating diritem to address :" << std::get<pointer_type>(dirItems[dirItems.size() - 1]) << " from on address " << STREAMADDRESS(std::get<pointer_type>(dirItems[dirItems.size() - 1])));
+    DEBUG("Relocating diritem to address :" << STREAMADDRESS(std::get<pointer_type>(dirItems[removed])) << " from on address " << STREAMADDRESS(std::get<pointer_type>(dirItems[dirItems.size() - 1])));
     AWRITE(std::get<pointer_type>(dirItems[removed]), reinterpret_cast<char*>(&reloc), sizeof(dirItem));
     return true;
 }
@@ -473,9 +473,13 @@ errorCode fileSystem::format()
     // superBlock
     AWRITE(0, reinterpret_cast<char*>(&sb), sizeof(superBlock));
     // inode bitArray
+    DEBUG("bit Array of Inoodes Address:" << STREAMADDRESS(sb.bitArrayInodeAddress()));
     inodeBitArray = fileBitArray(sb.bitArrayInodeAddress(), sb.inodeCount);
-    // data blocks bitArray    
+    // data blocks bitArray
+    DEBUG("bit Array of Inoodes Address:" << STREAMADDRESS(sb.bitArrayDataBlockAddress()));
     dataBlockBitArray = fileBitArray(sb.bitArrayDataBlockAddress(), sb.blockCount);
+    DEBUG("inode data section on address:" << STREAMADDRESS(sb.inodeAddress()));
+    DEBUG("data blocks section on address:" << STREAMADDRESS(sb.dataAddress()));
 
 #ifndef NDEBUG
     DEBUG("Writing placeholder of inodes");
