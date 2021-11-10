@@ -168,6 +168,15 @@ private:
     errorCode calcAndFormat(size_type size);
 
 public:
+    /**
+     * @brief vytvori soubor od danym 
+     * 
+     * @param dirID 
+     * @param fileName 
+     * @param data 
+     * @return errorCode 
+     */
+    errorCode touch(size_type dirID,const char fileName[maxFileNameLenght],const char data[] = "");
 
     /**
      * @brief kopiruje src do dest

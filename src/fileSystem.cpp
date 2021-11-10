@@ -200,6 +200,45 @@ bool fileSystem::removeDirItem(inode& inode, size_type removedID)
     return true;
 }
 
+errorCode fileSystem::touch(size_type dirID, const char fileName[maxFileNameLenght], const char data[])
+{
+    inode parent, file;
+    file = alocateNewInode();
+    if (file.id == 0)
+    {
+        return errorCode::INODE_POOL_FULL;
+    }
+    file.type = inode::inode_types::file;
+    file.fileSize = std::strlen(data);
+    AREAD(sb.inodeAddress() + dirID * sizeof(inode), reinterpret_cast<char*>(&parent), sizeof(inode));
+    dirItem dirItem(fileName, file.id);
+    if (!addDirItem(parent, dirItem))
+    {
+        FATAL("Parrent dir is full can not add file");
+        freeInode(file.id);
+        return errorCode::CANNOT_CREATE_FILE;
+    }
+    int blockCount = file.fileSize % sb.blockSize == 0 ? file.fileSize / sb.blockSize : file.fileSize / sb.blockSize + 1;
+    auto dataP = alocateDataBlocks(blockCount);
+    if (dataP.size() == 0 && blockCount != 0)
+    {
+        FATAL("Can not create file not have enough free space");
+        freeInode(file.id);
+        return errorCode::CANNOT_CREATE_FILE;
+    }
+    for (size_t i = 0; i < blockCount; i++)
+    {
+        char current[sb.blockSize];
+        std::memset(current,'\0',sb.blockSize);
+        std::strncpy(current,data,sb.blockSize);
+        AWRITE(dataP[i], current, sb.blockSize);
+        data += sb.blockSize;
+        addPointer(file,dataP[i]);
+    }
+    AWRITE(sb.inodeAddress() + file.id * sizeof(inode), reinterpret_cast<char*>(&file), sizeof(inode));
+    return errorCode::OK;
+}
+
 errorCode fileSystem::cp(size_type srcInodeID, size_type destInodeID)
 {
     inode src, dest;
@@ -213,6 +252,7 @@ errorCode fileSystem::cp(size_type srcInodeID, size_type destInodeID)
     {
         return errorCode::PATH_NOT_FOUND;
     }
+    DEBUG("Coping file inode(" << srcInodeID << ") to file inode(" << destInodeID << ")");
     auto data = getDataPointers(src);
     auto nData = alocateDataBlocks(data.size());
     if (data.size() > nData.size())
@@ -225,7 +265,7 @@ errorCode fileSystem::cp(size_type srcInodeID, size_type destInodeID)
         char current[sb.blockSize];
         AREAD(data[i], current, sb.blockSize);
         AWRITE(nData[i], current, sb.blockSize);
-        addPointer(dest,nData[i]);
+        addPointer(dest, nData[i]);
     }
     dest.fileSize = src.fileSize;
     return errorCode::OK;
@@ -464,7 +504,8 @@ std::vector<pointer_type> fileSystem::alocateDataBlocks(size_t numberOfDataBlock
     {
         return std::vector<pointer_type>();
     }
-    std::vector<pointer_type> pointers = std::vector<pointer_type>(blockID.size());
+    std::vector<pointer_type> pointers;
+    pointers.reserve(blockID.size());
     for (size_t index : blockID)
     {
         pointers.push_back(sb.dataAddress() + index * sb.blockSize);
