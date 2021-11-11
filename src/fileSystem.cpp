@@ -14,36 +14,22 @@
 */
 
 #define SEEKG(pos)\
-    assert((!fileStream.fail()) && "preSEEKG");\
-    fileStream.seekg(pos);\
-    assert((!fileStream.fail()) && "posSEEKG")
+    assert((!fileStream.fail()) && "preSEEKG");fileStream.seekg(pos);assert((!fileStream.fail()) && "posSEEKG")
 
 #define SEEKP(pos)\
-    assert((!fileStream.fail()) && "preSEEKG");\
-    fileStream.seekp(pos);\
-    assert((!fileStream.fail()) && "posSEEKP")
+    assert((!fileStream.fail()) && "preSEEKG");fileStream.seekp(pos);assert((!fileStream.fail()) && "posSEEKP")
 
 #define WRITE(data,sizeBytes)\
-    assert((!fileStream.fail()) && "preWRITE");\
-    TRACE("Write to  address:" << STREAMADDRESS(fileStream.tellp()) << " size " << sizeBytes);\
-    fileStream.write(data, sizeBytes).flush();\
-    assert((!fileStream.fail())&& "posWRITE")
+    assert((!fileStream.fail()) && "preWRITE");TRACE("Write to  address:" << STREAMADDRESS(fileStream.tellp()) << " size " << sizeBytes);fileStream.write(data, sizeBytes).flush();assert((!fileStream.fail())&& "posWRITE")
 
 #define AWRITE(address,data,sizeBytes)\
-    assert((!fileStream.fail()) && "preAWRITE");\
-    SEEKP(address);\
-    WRITE(data,sizeBytes)
+    assert((!fileStream.fail()) && "preAWRITE");SEEKP(address);WRITE(data,sizeBytes)
 
 #define READ(data,sizeBytes)\
-    assert((!fileStream.fail()) && "preREAD");\
-    TRACE("Read from address:" << STREAMADDRESS(fileStream.tellg()) << " size " << sizeBytes);\
-    fileStream.read(data, sizeBytes);\
-    assert((!fileStream.fail()) && "posREAD")
+    assert((!fileStream.fail()) && "preREAD");TRACE("Read from address:" << STREAMADDRESS(fileStream.tellg()) << " size " << sizeBytes);fileStream.read(data, sizeBytes);assert((!fileStream.fail()) && "posREAD")
 
 #define AREAD(address,data,sizeBytes)\
-    assert((!fileStream.fail()) && "preAREAD");\
-    SEEKG(address);\
-    READ(data,sizeBytes);
+    assert((!fileStream.fail()) && "preAREAD");SEEKG(address);READ(data,sizeBytes);
 
 /*
 *   Konec sekce smrti
@@ -130,7 +116,7 @@ void fileSystem::addPointer(inode& inode, pointer_type pointer)
             return;
         }
     }
-    FATAL("Inode address pool overflow");
+    ERROR("Inode address pool overflow");
     assert(false);
 }
 bool fileSystem::addDirItem(inode& node, dirItem& item)
@@ -207,6 +193,7 @@ errorCode fileSystem::touch(size_type dirID, const char fileName[maxFileNameLeng
     file = alocateNewInode();
     if (file.id == 0)
     {
+        DEBUG("touch can not create file inode pool is full");
         return errorCode::INODE_POOL_FULL;
     }
     file.type = inode::inode_types::file;
@@ -215,7 +202,7 @@ errorCode fileSystem::touch(size_type dirID, const char fileName[maxFileNameLeng
     dirItem dirItem(fileName, file.id);
     if (!addDirItem(parent, dirItem))
     {
-        ERROR("Parrent dir is full can not add file");
+        DEBUG("touch parrent dir can not add file");
         freeInode(file);
         return errorCode::CANNOT_CREATE_FILE;
     }
@@ -223,7 +210,7 @@ errorCode fileSystem::touch(size_type dirID, const char fileName[maxFileNameLeng
     auto dataP = alocateDataBlocks(blockCount);
     if (dataP.size() == 0 && blockCount != 0)
     {
-        ERROR("Can not create file not have enough free space");
+        DEBUG("touch can not create file not have enough free space");
         freeInode(file);
         return errorCode::CANNOT_CREATE_FILE;
     }
@@ -246,11 +233,13 @@ errorCode fileSystem::cp(size_type srcInodeID, size_type destInodeID)
     AREAD(sb.inodeAddress() + srcInodeID * sizeof(inode), reinterpret_cast<char*>(&src), sizeof(inode));
     if (src.type != inode::inode_types::file)
     {
+        DEBUG("cp can copy only files");
         return errorCode::FILE_NOT_FOUND;
     }
     AREAD(sb.inodeAddress() + destInodeID * sizeof(inode), reinterpret_cast<char*>(&dest), sizeof(inode));
     if (dest.type != src.type)
     {
+        DEBUG("cp can only to prealocated file");
         return errorCode::PATH_NOT_FOUND;
     }
     DEBUG("Coping file inode(" << srcInodeID << ") to file inode(" << destInodeID << ")");
@@ -269,6 +258,7 @@ errorCode fileSystem::cp(size_type srcInodeID, size_type destInodeID)
         addPointer(dest, nData[i]);
     }
     dest.fileSize = src.fileSize;
+    dest.type = src.type;
     AWRITE(sb.inodeAddress() + dest.id * sizeof(inode), reinterpret_cast<char*>(&dest), sizeof(inode));
     return errorCode::OK;
 }
@@ -311,6 +301,7 @@ errorCode fileSystem::rm(size_type parentID, size_type inodeID)
     AREAD(sb.inodeAddress() + parentID * sizeof(inode), reinterpret_cast<char*>(&parent), sizeof(inode));
     if (inode.type != inode::inode_types::file)
     {
+        DEBUG("rm can be only used on file");
         return errorCode::FILE_NOT_FOUND;
     }
     if (!removeDirItem(parent, inodeID))
@@ -334,6 +325,7 @@ errorCode fileSystem::ls(size_type inodeID, std::vector<std::string>& dirItems)
     AREAD(sb.inodeAddress() + inodeID * sizeof(inode), reinterpret_cast<char*>(&dir), sizeof(inode));
     if (dir.type != inode::inode_types::dir)
     {
+        DEBUG("ls can be only used on dirs");
         return errorCode::PATH_NOT_FOUND;
     }
     std::vector<dirItemP> dirs = getDirItems(dir);
@@ -370,6 +362,7 @@ errorCode fileSystem::mkdir(const char dirName[fileLiteralLenght], size_type par
     inode dir = alocateNewInode();
     if (dir.id == 0)
     {
+        ERROR("mkdir can not create new dir inode pool is full");
         return errorCode::INODE_POOL_FULL;
     }
 
@@ -380,6 +373,7 @@ errorCode fileSystem::mkdir(const char dirName[fileLiteralLenght], size_type par
     if (!addDirItem(parent, newDir))
     {
         freeInode(dir);
+        DEBUG("mkdir can not create new dir this name is already in use");
         return errorCode::EXIST;
     }
 
@@ -401,11 +395,13 @@ errorCode fileSystem::rmdir(size_type inodeID)
     AREAD(sb.inodeAddress() + inodeID * sizeof(inode), reinterpret_cast<char*>(&dir), sizeof(inode));
     if (dir.type != inode::inode_types::dir)
     {
+        DEBUG("rmdir can be only called on dirs");
         return errorCode::PATH_NOT_FOUND;
     }
     std::vector<dirItemP> subDirs = getDirItems(dir);
     if (subDirs.size() > 2)
     {
+        DEBUG("rmdir can not remove dir that is not empty");
         return errorCode::NOT_EMPTY;
     }
     inode parent;
@@ -458,6 +454,7 @@ std::vector<dirItemP> fileSystem::getDirItems(inode& inode)
     std::vector<dirItemP> dirItems;
     if (inode.type != inode::inode_types::dir)
     {
+        DEBUG("Can not read dirItems from non dir inode");
         return dirItems;
     }
     std::vector<pointer_type> data = getDataPointers(inode);
@@ -546,21 +543,20 @@ std::vector<pointer_type> fileSystem::alocateDataBlocks(size_t numberOfDataBlock
 {
 
     std::vector<size_type> blockID;
-    auto it = dataBlockBitArray.begin();
+    size_t aloc = numberOfDataBlocks;
+
     size_type index = 0;
-    while (it != dataBlockBitArray.end() && numberOfDataBlocks > 0)
+    for (auto it = dataBlockBitArray.begin(); it != dataBlockBitArray.end() && aloc > 0; index++, it++)
     {
         if (it.getVal(fileStream) == false)
         {
             blockID.push_back(index);
-            numberOfDataBlocks--;
+            aloc--;
         }
-        index++;
-        it++;
     }
-
-    if (numberOfDataBlocks > 0)
+    if (aloc > 0)
     {
+        ERROR("Not enough free blocks wanted (" << numberOfDataBlocks << ") but there is only (" << numberOfDataBlocks - aloc << ") no blocks alocated");
         return std::vector<pointer_type>();
     }
     std::vector<pointer_type> pointers;
@@ -588,6 +584,7 @@ errorCode fileSystem::calcAndFormat(size_type size)
     assert(sb.inodeCount >= minInodeCount);
     if (!sb.setupFilePointers())
     {
+        FATAL("Can not setup pointers for superblock configuration");
         return errorCode::CAN_NOT_CREATE_SUPERBLOCK;
     }
     return format();
@@ -603,12 +600,10 @@ errorCode fileSystem::format()
         return errorCode::CANNOT_CREATE_FILE;
     }
     DEBUG("Formating");
-    // superBlock
+    DEBUG("Super Block");
     AWRITE(0, reinterpret_cast<char*>(&sb), sizeof(superBlock));
-    // inode bitArray
     DEBUG("bit Array of Inoodes Address:" << STREAMADDRESS(sb.bitArrayInodeAddress()));
     inodeBitArray = fileBitArray(sb.bitArrayInodeAddress(), sb.inodeCount);
-    // data blocks bitArray
     DEBUG("bit Array of Inoodes Address:" << STREAMADDRESS(sb.bitArrayDataBlockAddress()));
     dataBlockBitArray = fileBitArray(sb.bitArrayDataBlockAddress(), sb.blockCount);
     DEBUG("inode data section on address:" << STREAMADDRESS(sb.inodeAddress()));
@@ -640,7 +635,6 @@ errorCode fileSystem::format()
     }
     delete[] placeholderd;
 #else
-    // zabrani vyuzitelne pameti
     fileStream.seekp(sb.dataAddress() + sb.blockCount * sb.blockSize);
     fileStream.write("", 1);
 #endif

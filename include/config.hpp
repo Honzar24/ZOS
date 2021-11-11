@@ -2,7 +2,6 @@
 
 #include <string>
 #include <cstdlib>
-#include <cassert>
 
 // types
 /// typ vyuzivany cisla
