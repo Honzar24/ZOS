@@ -280,11 +280,15 @@ errorCode fileSystem::mv(size_type parentID, size_type srcInodeID, size_type des
         return errorCode::PATH_NOT_FOUND;
     }
     AREAD(sb.inodeAddress() + parentID * sizeof(inode), reinterpret_cast<char*>(&parent), sizeof(inode));
-    if (!removeDirItem(parent, src.id))
+    for (size_t i = 0; i <= src.numHardLinks; i++)
     {
-        DEBUG("mv parent can not remove the src inode");
-        return errorCode::FILE_NOT_FOUND;
+        if (!removeDirItem(parent, src.id))
+        {
+            DEBUG("mv parent can not remove the src inode");
+            return errorCode::FILE_NOT_FOUND;
+        }
     }
+
     DEBUG("Moving file inode(" << srcInodeID << ") to file inode(" << destInodeID << ")");
     auto data = getDataPointers(src);
     dest.pointers = src.pointers;
@@ -308,6 +312,12 @@ errorCode fileSystem::rm(size_type parentID, size_type inodeID)
     if (!removeDirItem(parent, inodeID))
     {
         return errorCode::FILE_NOT_FOUND;
+    }
+    if (inode.numHardLinks != 0)
+    {
+        inode.numHardLinks--;
+        AWRITE(sb.inodeAddress() + inode.id * sizeof(inode), reinterpret_cast<char*>(&inode), sizeof(inode));
+        return fileSystem::errorCode::OK;
     }
     DEBUG("Removing file with inode(" << inodeID << ") from dir with inode(" << parentID << ")");
     auto data = getDataPointers(inode);
@@ -397,6 +407,29 @@ error_string_pair fileSystem::info(size_type parentID, const file_name_t name)
         out << STREAMADDRESS(pointer);
     }
     return std::make_pair(errorCode::OK, out.str());
+}
+
+errorCode fileSystem::ln(size_type srcID, size_type destDirID, const file_name_t fileName)
+{
+    inode parent, src;
+    AREAD(sb.inodeAddress() + destDirID * sizeof(inode), reinterpret_cast<char*>(&parent), sizeof(inode));
+    if (parent.type != inode::inode_types::dir)
+    {
+        DEBUG("ln can not add link to not dir inode");
+        return errorCode::CANNOT_CREATE_FILE;
+    }
+    AREAD(sb.inodeAddress() + srcID * sizeof(inode), reinterpret_cast<char*>(&src), sizeof(inode));
+    if (src.type != inode::inode_types::file)
+    {
+        DEBUG("ln can not add link to not dir inode");
+        return errorCode::CANNOT_CREATE_FILE;
+    }
+    dirItem linkItem(fileName, srcID);
+    bool added = addDirItem(parent, linkItem);
+    assert(added);
+    src.numHardLinks++;
+    AWRITE(sb.inodeAddress() + srcID * sizeof(inode), reinterpret_cast<char*>(&src), sizeof(inode));
+    return errorCode::OK;
 }
 
 
@@ -546,7 +579,13 @@ void fileSystem::freeInode(inode& inode)
     DEBUG("Free inode " << inodeId);
     it.flip(fileStream);
     char empty[sizeof(inode)];
-    std::memset(empty, '\0', sizeof(inode));
+#ifndef NDEBUG
+    std::memset(empty, 'f', sizeof(empty));
+    empty[0] = '<';
+    empty[sizeof(empty) - 1] = '>';
+#else
+    std::memset(empty, '\0', sizeof(empty));
+#endif
     AWRITE((sb.inodeAddress() + inodeId * sizeof(inode)), empty, sizeof(inode));
 }
 
@@ -580,7 +619,7 @@ pointer_type fileSystem::alocateDataBlock()
 
 void fileSystem::freeDataBlock(pointer_type dataPointer)
 {
-    if(dataPointer < sb.dataAddress())
+    if (dataPointer < sb.dataAddress())
     {
         return;
     }
@@ -593,9 +632,11 @@ void fileSystem::freeDataBlock(pointer_type dataPointer)
     it.flip(fileStream);
     char empty[sb.blockSize];
 #ifndef NDEBUG
-    std::memset(empty, 'd', sb.blockSize);
+    std::memset(empty, 'f', sizeof(empty));
+    empty[0] = '<';
+    empty[sizeof(empty) - 1] = '>';
 #else
-    std::memset(empty, '\0', sb.blockSize);
+    std::memset(empty, '\0', sizeof(empty));
 #endif
     AWRITE(dataPointer, empty, sb.blockSize);
 }

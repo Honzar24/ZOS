@@ -241,13 +241,14 @@ public:
     error_string_pair info(size_type parentID, const file_name_t name);
 
     /**
-     * @brief vytvori hard link na soubor src do souboru dest
+     * @brief vytvori hard link na soubor src do adresare destDirID s jmenem fileName
      *
-     * @param src soubor inodeID
-     * @param dest soubor inodeID k prepsani
+     * @param srcID souboroveho inodu
+     * @param destDirID adresar kde chceme hardlink umistit
+     * @param fileName 
      * @return errorCode
      */
-    errorCode ln(size_type src, size_type dest);
+    errorCode ln(size_type srcID, size_type destDirID, const file_name_t fileName);
 
 
     /**
