@@ -315,8 +315,10 @@ errorCode fileSystem::rm(size_type parentID, size_type inodeID)
     {
         freeDataBlock(pointer);
     }
-
-
+    for (size_t i = 0; i < indirectPointersCount; i++)
+    {
+        freeDataBlock(inode.pointers.indirect[i]);
+    }
     freeInode(inode);
     AWRITE(sb.inodeAddress() + inode.id * sizeof(inode), reinterpret_cast<char*>(&empty), sizeof(inode));
     return errorCode::OK;
@@ -578,6 +580,10 @@ pointer_type fileSystem::alocateDataBlock()
 
 void fileSystem::freeDataBlock(pointer_type dataPointer)
 {
+    if(dataPointer < sb.dataAddress())
+    {
+        return;
+    }
     auto it = ((dataBlockBitArray.begin()) += (dataPointer - sb.dataAddress()) / sb.blockSize);
     if (it.getVal(fileStream) == false)
     {
