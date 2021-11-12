@@ -60,58 +60,71 @@ int main(int argc, char const* argv[])
 
     std::string fileName(argv[1]);
     //superBlock sb(defaulSignature, defaulDescription, 56, 100, 200);
-    superBlock sb(103 * 1024,128);
+    superBlock sb(103 * 1024, 128);
     fileSystem fs(fileName, sb);
     std::vector<std::string> files;
 
-/*
-    for (size_t i = 0; i < 30; i++)
-    {
-        std::string newDir("dir ");
-        newDir += (char)('A' + i);
-        auto ret = fs.mkdir(newDir.c_str(), 0);
-        if (ret == fileSystem::errorCode::OK)
+    /*
+        for (size_t i = 0; i < 30; i++)
         {
-            std::cout << i << ". Dir " << newDir << " created!" << std::endl;
-        } else
-        {
-            std::cout << i << ". Dir " << newDir << " not created!   " << ret << std::endl;
+            std::string newDir("dir ");
+            newDir += (char)('A' + i);
+            auto ret = fs.mkdir(newDir.c_str(), 0);
+            if (ret == fileSystem::errorCode::OK)
+            {
+                std::cout << i << ". Dir " << newDir << " created!" << std::endl;
+            } else
+            {
+                std::cout << i << ". Dir " << newDir << " not created!   " << ret << std::endl;
+            }
         }
-    }
-    fs.ls(0, files);
-    for (auto file : files)
+        fs.ls(0, files);
+        for (auto file : files)
+        {
+            std::cout << file << std::endl;
+        }
+        std::cout << fs.rmdir(20) << std::endl;
+        files.clear();
+        fs.ls(0, files);
+        for (auto file : files)
+        {
+            std::cout << file << std::endl;
+        }
+        std::cout << fs.rmdir(10) << std::endl;
+        files.clear();
+        fs.ls(0, files);
+        for (auto file : files)
+        {
+            std::cout << file << std::endl;
+        }
+        */
+    std::string testdata;
+    for (size_t i = 0; i < 20; i++)
     {
-        std::cout << file << std::endl;
-    }
-    std::cout << fs.rmdir(20) << std::endl;
-    files.clear();
-    fs.ls(0, files);
-    for (auto file : files)
-    {
-        std::cout << file << std::endl;
-    }
-    std::cout << fs.rmdir(10) << std::endl;
-    files.clear();
-    fs.ls(0, files);
-    for (auto file : files)
-    {
-        std::cout << file << std::endl;
-    }
-    */
+        char c = 'a' + i;
+        for (size_t j = 0; j < 50; j++)
+        {
+            testdata += c;
+        }
 
-    std::cout << fs.touch(0,"test","00000000111111112222222333333334444444555555555555555544444443333333322222221111111100000000") << std::endl;
-    std::cout << fs.touch(0,"testcp") << std::endl;
-    std::cout << fs.touch(0,"testmv") << std::endl;
+    }
+
+
+    std::cout << fs.touch(0, "test", testdata.c_str()) << std::endl;
+    std::cout << fs.touch(0, "testcp") << std::endl;
+    std::cout << fs.touch(0, "testmv") << std::endl;
     std::cout << fs.cp(1,2) << std::endl;
-    std::cout << fs.mv(0,1,3) << std::endl;
-    std::cout << fs.rm(0,1) << std::endl;
-    std::cout << fs.rm(0,2) << std::endl;
+    std::cout << fs.mv(0, 1, 3) << std::endl;
+    std::cout << fs.rm(0, 1) << std::endl;
+    std::cout << fs.rm(0, 2) << std::endl;
     files.clear();
     fs.ls(0, files);
     for (auto file : files)
     {
         std::cout << file << std::endl;
     }
+    auto ret = fs.info(0, "testmv");
+    std::cout << std::get<errorCode>(ret) << std::get<std::string>(ret) << std::endl;
 
     return EXIT_SUCCESS;
 }

@@ -2,6 +2,7 @@
 #include <cstdint>
 #include <cstring>
 #include <cassert>
+#include <sstream>
 
 #include <fileSystem.hpp>
 #include <dirItem.hpp>
@@ -314,6 +315,8 @@ errorCode fileSystem::rm(size_type parentID, size_type inodeID)
     {
         freeDataBlock(pointer);
     }
+
+
     freeInode(inode);
     AWRITE(sb.inodeAddress() + inode.id * sizeof(inode), reinterpret_cast<char*>(&empty), sizeof(inode));
     return errorCode::OK;
@@ -354,6 +357,44 @@ errorCode fileSystem::ls(size_type inodeID, std::vector<std::string>& dirItems)
         }
     }
     return fileSystem::errorCode::OK;
+}
+
+error_string_pair fileSystem::info(size_type parentID, const file_name_t name)
+{
+    inode parent, inode;
+    AREAD(sb.inodeAddress() + parentID * sizeof(inode), reinterpret_cast<char*>(&parent), sizeof(inode));
+    if (parent.type != inode::inode_types::dir)
+    {
+        DEBUG("info can not find parent of inode");
+        return std::make_pair(errorCode::FILE_NOT_FOUND, std::string());
+    }
+    auto dirItems = getDirItems(parent);
+    bool found = false;
+    dirItem item;
+    for (auto i : dirItems)
+    {
+        item = std::get<dirItem>(i);
+        if (std::strcmp(item.name, name) == 0)
+        {
+            AREAD(sb.inodeAddress() + item.inode_id * sizeof(inode), reinterpret_cast<char*>(&inode), sizeof(inode));
+            found = true;
+            break;
+        }
+    }
+    if (!found)
+    {
+        DEBUG("info can not found dir item with name: " << name);
+        return std::make_pair(errorCode::FILE_NOT_FOUND, std::string());
+    }
+    std::stringstream out;
+    out << item.name << " - ";
+    out << inode.fileSize << " - ";
+    out << inode.id << " - ";
+    for (auto pointer : getDataPointers(inode))
+    {
+        out << STREAMADDRESS(pointer);
+    }
+    return std::make_pair(errorCode::OK, out.str());
 }
 
 
@@ -495,8 +536,13 @@ inode fileSystem::alocateNewInode()
 void fileSystem::freeInode(inode& inode)
 {
     size_type inodeId = inode.id;
+    auto it = (inodeBitArray.begin() += inodeId);
+    if (it.getVal(fileStream) == false)
+    {
+        return;
+    }
     DEBUG("Free inode " << inodeId);
-    (inodeBitArray.begin() += inodeId).flip(fileStream);
+    it.flip(fileStream);
     char empty[sizeof(inode)];
     std::memset(empty, '\0', sizeof(inode));
     AWRITE((sb.inodeAddress() + inodeId * sizeof(inode)), empty, sizeof(inode));
@@ -532,10 +578,19 @@ pointer_type fileSystem::alocateDataBlock()
 
 void fileSystem::freeDataBlock(pointer_type dataPointer)
 {
+    auto it = ((dataBlockBitArray.begin()) += (dataPointer - sb.dataAddress()) / sb.blockSize);
+    if (it.getVal(fileStream) == false)
+    {
+        return;
+    }
     DEBUG("Free data block on " << STREAMADDRESS(dataPointer));
-    ((dataBlockBitArray.begin()) += (dataPointer - sb.dataAddress()) / sb.blockSize).flip(fileStream);
+    it.flip(fileStream);
     char empty[sb.blockSize];
+#ifndef NDEBUG
+    std::memset(empty, 'd', sb.blockSize);
+#else
     std::memset(empty, '\0', sb.blockSize);
+#endif
     AWRITE(dataPointer, empty, sb.blockSize);
 }
 

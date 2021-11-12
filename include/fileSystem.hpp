@@ -49,7 +49,7 @@
  *
  */
 
-
+using file_name_t = const char[maxFileNameLenght];
 
 class fileSystem
 {
@@ -65,6 +65,7 @@ public:
         CAN_NOT_CREATE_SUPERBLOCK,
         INODE_POOL_FULL
     };
+    using error_string_pair = std::pair<errorCode, std::string>;
 
 private:
     std::string fileName;
@@ -169,14 +170,14 @@ private:
 
 public:
     /**
-     * @brief vytvori soubor od danym 
-     * 
-     * @param dirID 
-     * @param fileName 
-     * @param data 
-     * @return errorCode 
+     * @brief vytvori soubor od danym
+     *
+     * @param dirID
+     * @param fileName
+     * @param data
+     * @return errorCode
      */
-    errorCode touch(size_type dirID,const char fileName[maxFileNameLenght],const char data[] = "");
+    errorCode touch(size_type dirID, file_name_t filename, const char data[] = "");
 
     /**
      * @brief kopiruje src do dest
@@ -194,7 +195,7 @@ public:
      * @param destInodeID
      * @return errorCode
      */
-    errorCode mv(size_type parentID,size_type srcInodeID, size_type destInodeID);
+    errorCode mv(size_type parentID, size_type srcInodeID, size_type destInodeID);
     /**
      * @brief maze soubor
      *
@@ -202,7 +203,7 @@ public:
      * @param inodeID
      * @return errorCode
      */
-    errorCode rm(size_type parentID,size_type inodeID);
+    errorCode rm(size_type parentID, size_type inodeID);
 
     /**
     * @brief Zalozeni adresare pod parentInnodeID
@@ -230,10 +231,14 @@ public:
      */
     errorCode ls(size_type inodeID, std::vector<std::string>& dirItems);
 
-    /*
-    TODO: co tohle ma delat?
-    */
-    errorCode info();
+    /**
+     * @brief zobrazeni informace o inodu
+     *
+     * @param parentID
+     * @param name
+     * @return error_string_pair OK | FILE NOT FOUND pokud OK tak v stringu jsou ulozeny informace o inodu
+     */
+    error_string_pair info(size_type parentID, const file_name_t name);
 
     /**
      * @brief vytvori hard link na soubor src do souboru dest
@@ -272,6 +277,8 @@ public:
     ~fileSystem() = default;
 };
 using errorCode = fileSystem::errorCode;
+using error_string_pair = std::pair<errorCode, std::string>;
+
 inline std::ostream& operator<<(std::ostream& os, errorCode errorCode)
 {
     switch (errorCode)
