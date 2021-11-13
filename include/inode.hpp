@@ -19,18 +19,16 @@ public:
     enum inode_types : counter_type {
         nodef = 0,
         file,
-        dir,
+        dir
     };
 
-    //Unikatni identifikator idnodu
+
     size_type id;
-    //file type
     inode_types type;
     //Velikost souboru v Bajtech
     size_type fileSize;
     //Pocet linku ukazujici na teto inode
     counter_type numHardLinks;
-    //data pointery
     inode_poiters pointers;
 public:
     inline inode(size_type id, inode_types type, size_type fileSize) :id(id), type(type), fileSize(fileSize), numHardLinks(0)
