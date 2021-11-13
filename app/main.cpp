@@ -60,7 +60,7 @@ int main(int argc, char const* argv[])
 
     std::string fileName(argv[1]);
     //superBlock sb(defaulSignature, defaulDescription, 56, 100, 200);
-    superBlock sb(103 * 1024);
+    superBlock sb(103 * 1024, 256);
     fileSystem fs(fileName, sb);
     std::vector<std::string> files;
 
@@ -109,38 +109,25 @@ int main(int argc, char const* argv[])
 
     }
 
-
     std::cout << fs.touch(0, "test", testdata.c_str()) << std::endl;
     std::cout << fs.touch(0, "testcp") << std::endl;
     std::cout << fs.touch(0, "testmv") << std::endl;
-    std::cout << fs.ln(1,0,"testln") << std::endl;
-    std::cout<< std::get<std::string>(fs.info(0, "test")) << std::endl;
-    std::cout<< std::get<std::string>(fs.info(0, "testcp")) << std::endl;
-    std::cout<< std::get<std::string>(fs.info(0, "testmv")) << std::endl;
-    std::cout<< std::get<std::string>(fs.info(0, "testln")) << std::endl;
-    std::cout << fs.cp(1,2) << std::endl;
-    std::cout<< std::get<std::string>(fs.info(0, "test")) << std::endl;
-    std::cout<< std::get<std::string>(fs.info(0, "testcp")) << std::endl;
-    std::cout<< std::get<std::string>(fs.info(0, "testmv")) << std::endl;
-    std::cout<< std::get<std::string>(fs.info(0, "testln")) << std::endl;
-    std::cout << fs.mv(0, 1, 3) << std::endl;
-    std::cout<< std::get<std::string>(fs.info(0, "test")) << std::endl;
-    std::cout<< std::get<std::string>(fs.info(0, "testcp")) << std::endl;
-    std::cout<< std::get<std::string>(fs.info(0, "testmv")) << std::endl;
-    std::cout<< std::get<std::string>(fs.info(0, "testln")) << std::endl;
-    std::cout << fs.rm(0, 1) << std::endl;
-    std::cout << fs.rm(0, 2) << std::endl;
-    std::cout<< std::get<std::string>(fs.info(0, "test")) << std::endl;
-    std::cout<< std::get<std::string>(fs.info(0, "testcp")) << std::endl;
-    std::cout<< std::get<std::string>(fs.info(0, "testmv")) << std::endl;
-    std::cout<< std::get<std::string>(fs.info(0, "testln")) << std::endl;
+    std::cout << fs.ln(1, 0, "testln") << std::endl;
+    fs.ls(0, files);
+    for (auto file : files)
+    {
+        std::cout << file << std::endl;
+    }
+    dirItem hm {"test",0};
+    fs.rm(0,hm);
+    dirItem hm1 {"testln",0};
+    fs.rm(0,hm1);
     files.clear();
     fs.ls(0, files);
     for (auto file : files)
     {
         std::cout << file << std::endl;
     }
-    std::cout<< std::get<std::string>(fs.info(0, "testmv")) << std::endl;
 
     return EXIT_SUCCESS;
 }

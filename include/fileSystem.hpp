@@ -36,6 +36,7 @@
  * TODO: co delat pokud dana inoda jiz nemuze na addresovat dalsi block?
  * TODO: vypis self a parent odkazu v ls?
  * TODO: mrdir /?
+ * TODO: mazat automaticky neplatne hardlinky?
  *
  *
  * : memory regen pri odstraneni posledni polozky v bloku
@@ -105,7 +106,7 @@ private:
      * @return true odstaneno
      * @return false nepodarilo se najit tento zaznam
      */
-    bool removeDirItem(inode& inode, size_type removedID);
+    bool removeDirItem(inode& inode, dirItem& dirItem);
     /**
      * @brief vytvori root adresar na nove zformatovanem disku
      *
@@ -155,9 +156,16 @@ private:
      * @brief naplni vector vsemi dirItemy v inodu
      *
      * @param inode
-     * @return vector vsech dir itemu patrici k danemu inodu
+     * @return std::vector<std::pair<dirItem, pointer_type>>  vsech dir itemu patrici k danemu inodu
      */
     std::vector<std::pair<dirItem, pointer_type>> getDirItems(inode& inode);
+    /**
+     * @brief naplni vector pouze validnimi dirItemy
+     * 
+     * @param inode 
+     * @return std::vector<std::pair<dirItem, pointer_type>> 
+     */
+    std::vector<std::pair<dirItem, pointer_type>> getValidDirItems(inode& inode);
     /**
      * @brief Propocita "nejlepsi" pocet data bloku pro velikost data bloku a pocet inodu podle pomeru viz. config
      * ze superBloku se vyuzije pouze block size zbyle parametry se dopocitaji nebo doplni z configu
@@ -182,11 +190,11 @@ public:
     /**
      * @brief kopiruje src do dest
      *
-     * @param srcInodeID
+     * @param srcItem
      * @param destInodeID
      * @return errorCode OK |FILE NOT FOUND (neni zdroj) |PATH NOT FOUND (neexistuje cilova cesta)
      */
-    errorCode cp(size_type srcInodeID, size_type destInodeID);
+    errorCode cp(dirItem& srcItem, size_type destInodeID);
     /**
      * @brief prejmenuje src na dest nebo presune src do dest adresare
      *
@@ -195,15 +203,15 @@ public:
      * @param destInodeID
      * @return errorCode
      */
-    errorCode mv(size_type parentID, size_type srcInodeID, size_type destInodeID);
+    errorCode mv(size_type parentID, dirItem& srcItem, size_type destInodeID);
     /**
      * @brief maze soubor
      *
-     * @param parentID
-     * @param inodeID
+     * @param parentID 
+     * @param item 
      * @return errorCode
      */
-    errorCode rm(size_type parentID, size_type inodeID);
+    errorCode rm(size_type parentID,dirItem& item);
 
     /**
     * @brief Zalozeni adresare pod parentInnodeID

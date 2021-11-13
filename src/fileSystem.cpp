@@ -154,14 +154,15 @@ bool fileSystem::addDirItem(inode& node, dirItem& item)
     AWRITE(sb.inodeAddress() + node.id * sizeof(inode), reinterpret_cast<char*>(&node), sizeof(inode));
     return true;
 }
-bool fileSystem::removeDirItem(inode& inode, size_type removedID)
+bool fileSystem::removeDirItem(inode& inode, dirItem& item)
 {
     dirItem empty;
     std::vector<dirItemP> dirItems = getDirItems(inode);
     int removed = -1;
     for (size_t i = 0; i < dirItems.size(); i++)
     {
-        if (std::get<dirItem>(dirItems[i]).inode_id == removedID)
+        auto current = std::get<dirItem>(dirItems[i]);
+        if (current.inode_id == item.inode_id && std::strcmp(current.name, item.name) == 0)
         {
             DEBUG("Clearing dir item with name " << std::get<dirItem>(dirItems[i]).name << " in inode" << inode.id << " on address " << STREAMADDRESS(std::get<pointer_type>(dirItems[i])));
             AWRITE(std::get<pointer_type>(dirItems[i]), reinterpret_cast<char*>(&empty), sizeof(dirItem));
@@ -228,10 +229,10 @@ errorCode fileSystem::touch(size_type dirID, const char fileName[maxFileNameLeng
     return errorCode::OK;
 }
 
-errorCode fileSystem::cp(size_type srcInodeID, size_type destInodeID)
+errorCode fileSystem::cp(dirItem& srcItem, size_type destInodeID)
 {
     inode src, dest;
-    AREAD(sb.inodeAddress() + srcInodeID * sizeof(inode), reinterpret_cast<char*>(&src), sizeof(inode));
+    AREAD(sb.inodeAddress() + srcItem.inode_id * sizeof(inode), reinterpret_cast<char*>(&src), sizeof(inode));
     if (src.type != inode::inode_types::file)
     {
         DEBUG("cp can copy only files");
@@ -243,7 +244,7 @@ errorCode fileSystem::cp(size_type srcInodeID, size_type destInodeID)
         DEBUG("cp can only to prealocated file");
         return errorCode::PATH_NOT_FOUND;
     }
-    DEBUG("Coping file inode(" << srcInodeID << ") to file inode(" << destInodeID << ")");
+    DEBUG("Coping file inode(" << srcItem.inode_id << ") to file inode(" << destInodeID << ")");
     auto data = getDataPointers(src);
     auto nData = alocateDataBlocks(data.size());
     if (data.size() > nData.size())
@@ -264,10 +265,10 @@ errorCode fileSystem::cp(size_type srcInodeID, size_type destInodeID)
     return errorCode::OK;
 }
 
-errorCode fileSystem::mv(size_type parentID, size_type srcInodeID, size_type destInodeID)
+errorCode fileSystem::mv(size_type parentID, dirItem& srcItem, size_type destInodeID)
 {
     inode src, dest, parent;
-    AREAD(sb.inodeAddress() + srcInodeID * sizeof(inode), reinterpret_cast<char*>(&src), sizeof(inode));
+    AREAD(sb.inodeAddress() + srcItem.inode_id * sizeof(inode), reinterpret_cast<char*>(&src), sizeof(inode));
     if (src.type != inode::inode_types::file && src.type != inode::inode_types::dir)
     {
         DEBUG("mv can not move inode that is not file or directory");
@@ -280,46 +281,65 @@ errorCode fileSystem::mv(size_type parentID, size_type srcInodeID, size_type des
         return errorCode::PATH_NOT_FOUND;
     }
     AREAD(sb.inodeAddress() + parentID * sizeof(inode), reinterpret_cast<char*>(&parent), sizeof(inode));
-    for (size_t i = 0; i <= src.numHardLinks; i++)
+#ifndef NLOG
+    if (src.numHardLinks > 0)
     {
-        if (!removeDirItem(parent, src.id))
-        {
-            DEBUG("mv parent can not remove the src inode");
-            return errorCode::FILE_NOT_FOUND;
-        }
+        INFO("mv moving hard pointed inode making all hard link invalid");
+    }
+#endif
+    if (!removeDirItem(parent, srcItem))
+    {
+        DEBUG("mv parent can not remove the src");
+        return errorCode::FILE_NOT_FOUND;
     }
 
-    DEBUG("Moving file inode(" << srcInodeID << ") to file inode(" << destInodeID << ")");
+    DEBUG("Moving file(" << srcItem.name << ") inode(" << srcItem.inode_id << ") to file inode(" << destInodeID << ")");
     auto data = getDataPointers(src);
     dest.pointers = src.pointers;
     dest.fileSize = src.fileSize;
-    dest.numHardLinks = src.numHardLinks;
+    dest.numHardLinks = 0;
     AWRITE(sb.inodeAddress() + dest.id * sizeof(inode), reinterpret_cast<char*>(&dest), sizeof(inode));
     freeInode(src);
     return errorCode::OK;
 }
 
-errorCode fileSystem::rm(size_type parentID, size_type inodeID)
+errorCode fileSystem::rm(size_type parentID, dirItem& item)
 {
     inode inode, parent, empty;
-    AREAD(sb.inodeAddress() + inodeID * sizeof(inode), reinterpret_cast<char*>(&inode), sizeof(inode));
+    dirItem dItem = item;
     AREAD(sb.inodeAddress() + parentID * sizeof(inode), reinterpret_cast<char*>(&parent), sizeof(inode));
+    if (item.inode_id == 0)
+    {
+        for (auto itemp : getValidDirItems(parent))
+        {
+            dirItem citem = std::get<dirItem>(itemp);
+            if (std::strcmp(citem.name, dItem.name) == 0)
+            {
+                dItem.inode_id = citem.inode_id;
+                break;
+            }
+        }
+    }
+    AREAD(sb.inodeAddress() + dItem.inode_id * sizeof(inode), reinterpret_cast<char*>(&inode), sizeof(inode));
+
     if (inode.type != inode::inode_types::file)
     {
         DEBUG("rm can be only used on file");
         return errorCode::FILE_NOT_FOUND;
     }
-    if (!removeDirItem(parent, inodeID))
+    if (!removeDirItem(parent, dItem))
     {
         return errorCode::FILE_NOT_FOUND;
     }
+    DEBUG("rm file(" << dItem.name << ") with inode(" << dItem.inode_id << ") from dir with inode(" << parentID << ")");
     if (inode.numHardLinks != 0)
     {
+        DEBUG("to this data still points some pointers only decrement pointer count");
         inode.numHardLinks--;
         AWRITE(sb.inodeAddress() + inode.id * sizeof(inode), reinterpret_cast<char*>(&inode), sizeof(inode));
         return fileSystem::errorCode::OK;
     }
-    DEBUG("Removing file with inode(" << inodeID << ") from dir with inode(" << parentID << ")");
+    DEBUG("Last pointer to this file removing data");
     auto data = getDataPointers(inode);
     for (auto pointer : data)
     {
@@ -380,7 +400,7 @@ error_string_pair fileSystem::info(size_type parentID, const file_name_t name)
         DEBUG("info can not find parent of inode");
         return std::make_pair(errorCode::FILE_NOT_FOUND, std::string());
     }
-    auto dirItems = getDirItems(parent);
+    auto dirItems = getValidDirItems(parent);
     bool found = false;
     dirItem item;
     for (auto i : dirItems)
@@ -402,10 +422,18 @@ error_string_pair fileSystem::info(size_type parentID, const file_name_t name)
     out << item.name << " - ";
     out << inode.fileSize << " - ";
     out << inode.id << " - ";
-    for (auto pointer : getDataPointers(inode))
+    auto pointers = getDataPointers(inode);
+    out << pointers.size() << " data blocks on addresses[";
+    auto it = pointers.begin();
+    if (it != pointers.end())
     {
-        out << STREAMADDRESS(pointer);
+        out << STREAMADDRESS(*it);
     }
+    for (; it != pointers.end();it++)
+    {
+        out << "," << STREAMADDRESS(*it);
+    }
+    out << "]";
     return std::make_pair(errorCode::OK, out.str());
 }
 
@@ -474,15 +502,16 @@ errorCode fileSystem::rmdir(size_type inodeID)
         DEBUG("rmdir can be only called on dirs");
         return errorCode::PATH_NOT_FOUND;
     }
-    std::vector<dirItemP> subDirs = getDirItems(dir);
+    std::vector<dirItemP> subDirs = getValidDirItems(dir);
     if (subDirs.size() > 2)
     {
         DEBUG("rmdir can not remove dir that is not empty");
         return errorCode::NOT_EMPTY;
     }
     inode parent;
-    AREAD(sb.inodeAddress() + std::get<dirItem>(subDirs[1]).inode_id * sizeof(inode), reinterpret_cast<char*>(&parent), sizeof(inode));
-    bool remove = removeDirItem(parent, dir.id);
+    auto item = std::get<dirItem>(subDirs[1]);
+    AREAD(sb.inodeAddress() + item.inode_id * sizeof(inode), reinterpret_cast<char*>(&parent), sizeof(inode));
+    bool remove = removeDirItem(parent, item);
     assert(remove || "removeDirItem");
     AWRITE(sb.inodeAddress() + parent.id * sizeof(inode), reinterpret_cast<char*>(&parent), sizeof(inode));
     freeDataBlock(dir.pointers.direct[0]);
@@ -549,6 +578,25 @@ std::vector<dirItemP> fileSystem::getDirItems(inode& inode)
         }
     }
     return dirItems;
+}
+
+std::vector<dirItemP> fileSystem::getValidDirItems(inode& inode)
+{
+    auto vector = getDirItems(inode);
+    for (auto it = vector.begin();it != vector.end();)
+    {
+        if ((inodeBitArray.begin() += std::get<dirItem>(*it).inode_id).getVal(fileStream) == false)
+        {
+            auto item = std::get<dirItem>(*it);
+            WARN("Found dir item with name:" << item.name << " that points to not valid inode(" << item.inode_id << ") removing it");
+            removeDirItem(inode, item);
+            it = vector.erase(it);
+        } else
+        {
+            it++;
+        }
+    }
+    return vector;
 }
 
 inode fileSystem::alocateNewInode()
