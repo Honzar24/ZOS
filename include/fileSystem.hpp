@@ -251,7 +251,7 @@ public:
      * @param dirItems vector pro vysledek
      * @return errorCode OK|PATH NOT FOUND (neexistujici adresar)
      */
-    errorCode ls(size_type inodeID, std::vector<std::string>& dirItems);
+    error_string_pair ls(size_type inodeID);
 
     /**
      * @brief zobrazeni informace o inodu

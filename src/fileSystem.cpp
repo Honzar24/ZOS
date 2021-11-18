@@ -374,15 +374,16 @@ errorCode fileSystem::rm(size_type parentID, dirItem& item)
     return errorCode::OK;
 }
 
-errorCode fileSystem::ls(size_type inodeID, std::vector<std::string>& dirItems)
+error_string_pair fileSystem::ls(size_type inodeID)
 {
     inode dir;
     AREAD(sb.inodeAddress() + inodeID * sizeof(inode), reinterpret_cast<char*>(&dir), sizeof(inode));
     if (dir.type != inode::inode_types::dir)
     {
         DEBUG("ls can be only used on dirs");
-        return errorCode::PATH_NOT_FOUND;
+        return std::make_pair(errorCode::PATH_NOT_FOUND,"");
     }
+    std::stringstream out;
     std::vector<dirItemP> dirs = getDirItems(dir);
     for (auto curent : dirs)
     {
@@ -390,25 +391,23 @@ errorCode fileSystem::ls(size_type inodeID, std::vector<std::string>& dirItems)
         {
             inode curentInode;
             AREAD(sb.inodeAddress() + std::get<dirItem>(curent).inode_id * sizeof(inode), reinterpret_cast<char*>(&curentInode), sizeof(inode));
-            std::string qname;
             switch (curentInode.type)
             {
             case inode::inode_types::dir:
-                qname.append("+");
+                out << '+';
                 break;
             case inode::inode_types::file:
-                qname.append("-");
+                out << '-';
                 break;
 
             default:
-                qname.append("?");
+                out << '?';
                 break;
             }
-            qname.append(std::get<dirItem>(curent).name);
-            dirItems.push_back(qname);
+            out << std::get<dirItem>(curent).name << std::endl;
         }
     }
-    return fileSystem::errorCode::OK;
+    return std::make_pair(fileSystem::errorCode::OK,out.str());
 }
 
 error_string_pair fileSystem::info(size_type parentID, const file_name_t name)

@@ -38,7 +38,6 @@ errorCode cd(fileSystem& fs, std::string path)
  */
 std::string pwd(fileSystem& fs)
 {
-    
     return "";
 }
 /**
@@ -121,6 +120,19 @@ bool procesLine(fileSystem& fs, std::string line)
     if (token.compare("exit") == 0)
     {
         return false;
+    }
+    if(token.compare("ls") == 0)
+    {
+        stream >> arg1;
+        auto ret = fs.ls(0);
+        auto code = std::get<errorCode>(ret);
+        if(code == errorCode::OK)
+        {
+            std::cout << ret.second;
+            return true;
+        }
+        std::cout << code << std::endl;
+        return true;
     }
     if (token.compare("incp") == 0)
     {
