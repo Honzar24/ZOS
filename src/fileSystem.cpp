@@ -188,6 +188,26 @@ bool fileSystem::removeDirItem(inode& inode, dirItem& item)
     return true;
 }
 
+std::pair<std::unique_ptr<char[]>,size_t> fileSystem::getData(size_type file){
+    inode inode;
+    AREAD(sb.inodeAddress() + file * sizeof(inode), reinterpret_cast<char*>(&inode), sizeof(inode));
+    if (inode.type != inode::inode_types::file)
+    {
+        DEBUG("Can not get data from non file");
+        return std::make_pair(nullptr,0);
+    }
+    size_t fileSize = inode.fileSize;
+    auto data = new char[fileSize];
+    char *cdata = data;
+    auto pointers = getDataPointers(inode);
+    for (size_t i = 0; i < pointers.size() - 1; i++,cdata+=sb.blockSize,fileSize-=sb.blockSize)
+    {
+        AREAD(pointers[i],cdata,sb.blockSize);
+    }
+    AREAD(pointers[pointers.size() - 1],cdata,fileSize);
+    return std::make_pair(std::unique_ptr<char[]>(data),inode.fileSize);
+}
+
 errorCode fileSystem::touch(size_type dirID, const char fileName[maxFileNameLenght], const char data[])
 {
     DEBUG("Creating file");

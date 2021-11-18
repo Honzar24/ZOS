@@ -149,7 +149,7 @@ private:
      * @brief vytvori vector data bloku ktere se vazou k danemu inodu
      *
      * @param inode
-     * @return vector pointeru na nove zabrane data blocky
+     * @return vector pointeru na zabrane data blocky
      */
     std::vector<pointer_type> getDataPointers(inode& inode);
     /**
@@ -177,6 +177,20 @@ private:
     errorCode calcAndFormat(size_type size);
 
 public:
+
+    std::string getName()
+    {
+        return fileName;
+    }
+
+    /**
+     * @brief vrati obsah souboru
+     * 
+     * @param file 
+     * @return std::unique_ptr<char[]> 
+     */
+    std::pair<std::unique_ptr<char[]>,size_t> getData(size_type file);
+
     /**
      * @brief vytvori soubor od danym
      *
@@ -283,7 +297,35 @@ public:
      */
     fileSystem(std::string& fileName);
 
-    ~fileSystem() = default;
+    //copy
+    fileSystem(fileSystem& o) = delete;
+    fileSystem& operator=(fileSystem& o)=delete;
+
+    //move
+    fileSystem(fileSystem&& o)
+    {
+        this->fileName = o.fileName;
+        this->fileStream = std::move(o.fileStream);
+        this->sb = o.sb;        
+        this->inodeBitArray = o.inodeBitArray;
+        this->dataBlockBitArray = o.dataBlockBitArray;
+    }
+    inline fileSystem& operator=(fileSystem&& o)
+    {
+        this->fileStream.close();
+
+        this->fileName = o.fileName;
+        this->fileStream = std::move(o.fileStream);
+        this->sb = o.sb;        
+        this->inodeBitArray = o.inodeBitArray;
+        this->dataBlockBitArray = o.dataBlockBitArray;
+        return *this;
+    }
+    
+    ~fileSystem()
+    {
+        fileStream.close();
+    }
 };
 using errorCode = fileSystem::errorCode;
 using error_string_pair = std::pair<errorCode, std::string>;
