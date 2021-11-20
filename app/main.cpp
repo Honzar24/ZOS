@@ -21,6 +21,8 @@ void printArgsHelp(char const argv[])
  */
 errorCode cat(fileSystem& fs, std::string fileName)
 {
+    fs.ls(0);
+    fileName.at(0);
     return errorCode::OK;
 }
 /**
@@ -30,22 +32,20 @@ errorCode cat(fileSystem& fs, std::string fileName)
  */
 errorCode cd(fileSystem& fs, std::string path)
 {
+    fs.ls(0);
+    path.at(0);
     return errorCode::OK;
 }
 /**
  * @brief vypise cestu od root adresare k aktualnimu umisteni
  *
  */
-std::string pwd(fileSystem& fs)
-{
-    return "";
-}
-/**
- * @brief vytvori kopii souboru z disku do VFS
- *
- * @param fileName
- * @param VFileName
- */
+ /**
+  * @brief vytvori kopii souboru z disku do VFS
+  *
+  * @param fileName
+  * @param VFileName
+  */
 errorCode incp(fileSystem& fs, std::string fileName, std::string VFileName)
 {
     std::fstream file(fileName, std::ios::in);
@@ -56,7 +56,7 @@ errorCode incp(fileSystem& fs, std::string fileName, std::string VFileName)
     file.seekg(0, std::ios::end);
     size_t fileSize = file.tellg();
     file.seekg(std::ios::beg);
-    char* data = new char[fileSize + 1];    
+    char* data = new char[fileSize + 1];
     std::memset(data, 'f', fileSize);
     data[fileSize] = '\0';
     file.read(data, fileSize);
@@ -79,7 +79,8 @@ errorCode outcp(fileSystem& fs, std::string VFileName, std::string fileName)
         return errorCode::PATH_NOT_FOUND;
     }
     //TODO:make path work
-    auto data = fs.getData(1);
+    auto inode = fs.pathToInode(VFileName);
+    auto data = fs.getData(inode);
     if (data.second <= 0)
     {
         return errorCode::FILE_NOT_FOUND;
@@ -121,12 +122,12 @@ bool procesLine(fileSystem& fs, std::string line)
     {
         return false;
     }
-    if(token.compare("ls") == 0)
+    if (token.compare("ls") == 0)
     {
         stream >> arg1;
         auto ret = fs.ls(0);
         auto code = std::get<errorCode>(ret);
-        if(code == errorCode::OK)
+        if (code == errorCode::OK)
         {
             std::cout << ret.second;
             return true;

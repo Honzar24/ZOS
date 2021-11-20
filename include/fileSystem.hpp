@@ -161,9 +161,9 @@ private:
     std::vector<std::pair<dirItem, pointer_type>> getDirItems(inode& inode);
     /**
      * @brief naplni vector pouze validnimi dirItemy
-     * 
-     * @param inode 
-     * @return std::vector<std::pair<dirItem, pointer_type>> 
+     *
+     * @param inode
+     * @return std::vector<std::pair<dirItem, pointer_type>>
      */
     std::vector<std::pair<dirItem, pointer_type>> getValidDirItems(inode& inode);
     /**
@@ -178,6 +178,8 @@ private:
 
 public:
 
+    size_type pathToInode(std::string path);
+
     std::string getName()
     {
         return fileName;
@@ -185,11 +187,11 @@ public:
 
     /**
      * @brief vrati obsah souboru
-     * 
-     * @param file 
-     * @return std::unique_ptr<char[]> 
+     *
+     * @param file
+     * @return std::unique_ptr<char[]>
      */
-    std::pair<std::unique_ptr<char[]>,size_t> getData(size_type file);
+    std::pair<std::unique_ptr<char[]>, size_t> getData(size_type file);
 
     /**
      * @brief vytvori soubor od danym
@@ -221,11 +223,11 @@ public:
     /**
      * @brief maze soubor
      *
-     * @param parentID 
-     * @param item 
+     * @param parentID
+     * @param item
      * @return errorCode
      */
-    errorCode rm(size_type parentID,dirItem& item);
+    errorCode rm(size_type parentID, dirItem& item);
 
     /**
     * @brief Zalozeni adresare pod parentInnodeID
@@ -267,7 +269,7 @@ public:
      *
      * @param srcID souboroveho inodu
      * @param destDirID adresar kde chceme hardlink umistit
-     * @param fileName 
+     * @param fileName
      * @return errorCode
      */
     errorCode ln(size_type srcID, size_type destDirID, const file_name_t fileName);
@@ -299,14 +301,14 @@ public:
 
     //copy
     fileSystem(fileSystem& o) = delete;
-    fileSystem& operator=(fileSystem& o)=delete;
+    fileSystem& operator=(fileSystem& o) = delete;
 
     //move
     fileSystem(fileSystem&& o)
     {
         this->fileName = o.fileName;
         this->fileStream = std::move(o.fileStream);
-        this->sb = o.sb;        
+        this->sb = o.sb;
         this->inodeBitArray = o.inodeBitArray;
         this->dataBlockBitArray = o.dataBlockBitArray;
     }
@@ -316,12 +318,12 @@ public:
 
         this->fileName = o.fileName;
         this->fileStream = std::move(o.fileStream);
-        this->sb = o.sb;        
+        this->sb = o.sb;
         this->inodeBitArray = o.inodeBitArray;
         this->dataBlockBitArray = o.dataBlockBitArray;
         return *this;
     }
-    
+
     ~fileSystem()
     {
         fileStream.close();

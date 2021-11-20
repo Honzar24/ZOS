@@ -21,11 +21,13 @@ public:
     //velikost bloku v Bytech           
     size_type blockSize;
 
+        //pocet inodu
+    size_type inodeCount;
+
     //pocet bloku        
     size_type blockCount;
 
-    //pocet inodu
-    size_type inodeCount;
+
 
 private:
     //adresa pocatku bitarray i-uzlu

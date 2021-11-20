@@ -39,7 +39,7 @@
 using dirItemP = std::pair<dirItem, pointer_type>;
 
 
-fileSystem::fileSystem(std::string& fileName, superBlock& sb) : fileName(fileName), sb(sb), fileStream(fileName)
+fileSystem::fileSystem(std::string& fileName, superBlock& sb) : fileName(fileName), fileStream(fileName), sb(sb)
 {
     if (sb.inodeAddress() != 0)
     {
@@ -58,6 +58,15 @@ fileSystem::fileSystem(std::string& fileName) : fileName(fileName), fileStream(f
     }
     AREAD(0, reinterpret_cast<char*>(&sb), sizeof(superBlock));
 }
+
+size_type fileSystem::pathToInode(std::string path)
+{
+    path.at(0);
+    return 0;
+}
+
+
+
 void fileSystem::createRoot()
 {
     DEBUG("Creating root");
@@ -74,7 +83,7 @@ void fileSystem::createRoot()
 bool fileSystem::addToIndirect(pointer_type pointer)
 {
     size_t pointerCount = sb.blockSize / sizeof(pointer_type);
-    pointer_type pointerBlock[pointerCount];
+    pointer_type* pointerBlock = new pointer_type[pointerCount];
     size_t basePointer = fileStream.tellg();
     READ(reinterpret_cast<char*>(pointerBlock), pointerCount * sizeof(pointer_type));
     for (size_t i = 0; i < pointerCount; i++)
@@ -84,9 +93,11 @@ bool fileSystem::addToIndirect(pointer_type pointer)
             auto data = reinterpret_cast<char*>(&pointer);
             DEBUG("pointer to " << STREAMADDRESS(pointer) << " as " << i << " pointer ");
             AWRITE(basePointer + i * sizeof(pointer_type), data, sizeof(pointer_type));
+            delete[] pointerBlock;
             return true;
         }
     }
+    delete[] pointerBlock;
     return false;
 }
 
@@ -127,7 +138,7 @@ bool fileSystem::addDirItem(inode& node, dirItem& item)
     for (auto dataBlock : data)
     {
         SEEKG(dataBlock);
-        dirItem curent[dirItemCount];
+        dirItem* curent = new dirItem[dirItemCount];
         READ(reinterpret_cast<char*>(curent), dirItemCount * sizeof(dirItem));
         for (size_t i = 0; i < dirItemCount; i++)
         {
@@ -136,9 +147,10 @@ bool fileSystem::addDirItem(inode& node, dirItem& item)
                 return false;
             }
         }
+        delete[] curent;
     }
     pointer_type pointer;
-    int freeSpace = data.size() * sb.blockSize - node.fileSize;
+    size_t freeSpace = data.size() * sb.blockSize - node.fileSize;
     if (freeSpace >= sizeof(dirItem))
     {
         pointer = data.back();
@@ -176,7 +188,7 @@ bool fileSystem::removeDirItem(inode& inode, dirItem& item)
     {
         return false;
     }
-    if (removed + 1 == dirItems.size())
+    if (removed + 1 == (int)dirItems.size())
     {
         return true;
     }
@@ -188,24 +200,25 @@ bool fileSystem::removeDirItem(inode& inode, dirItem& item)
     return true;
 }
 
-std::pair<std::unique_ptr<char[]>,size_t> fileSystem::getData(size_type file){
+std::pair<std::unique_ptr<char[]>, size_t> fileSystem::getData(size_type file)
+{
     inode inode;
     AREAD(sb.inodeAddress() + file * sizeof(inode), reinterpret_cast<char*>(&inode), sizeof(inode));
     if (inode.type != inode::inode_types::file)
     {
         DEBUG("Can not get data from non file");
-        return std::make_pair(nullptr,0);
+        return std::make_pair(nullptr, 0);
     }
     size_t fileSize = inode.fileSize;
     auto data = new char[fileSize];
-    char *cdata = data;
+    char* cdata = data;
     auto pointers = getDataPointers(inode);
-    for (size_t i = 0; i < pointers.size() - 1; i++,cdata+=sb.blockSize,fileSize-=sb.blockSize)
+    for (size_t i = 0; i < pointers.size() - 1; i++, cdata += sb.blockSize, fileSize -= sb.blockSize)
     {
-        AREAD(pointers[i],cdata,sb.blockSize);
+        AREAD(pointers[i], cdata, sb.blockSize);
     }
-    AREAD(pointers[pointers.size() - 1],cdata,fileSize);
-    return std::make_pair(std::unique_ptr<char[]>(data),inode.fileSize);
+    AREAD(pointers[pointers.size() - 1], cdata, fileSize);
+    return std::make_pair(std::unique_ptr<char[]>(data), inode.fileSize);
 }
 
 errorCode fileSystem::touch(size_type dirID, const char fileName[maxFileNameLenght], const char data[])
@@ -228,7 +241,7 @@ errorCode fileSystem::touch(size_type dirID, const char fileName[maxFileNameLeng
         freeInode(file);
         return errorCode::CANNOT_CREATE_FILE;
     }
-    int blockCount = file.fileSize % sb.blockSize == 0 ? file.fileSize / sb.blockSize : file.fileSize / sb.blockSize + 1;
+    size_t blockCount = file.fileSize % sb.blockSize == 0 ? file.fileSize / sb.blockSize : file.fileSize / sb.blockSize + 1;
     auto dataP = alocateDataBlocks(blockCount);
     if (dataP.size() == 0 && blockCount != 0)
     {
@@ -238,12 +251,13 @@ errorCode fileSystem::touch(size_type dirID, const char fileName[maxFileNameLeng
     }
     for (size_t i = 0; i < blockCount; i++)
     {
-        char current[sb.blockSize];
+        char* current = new char[sb.blockSize];
         std::memset(current, '\0', sb.blockSize);
         std::strncpy(current, data, sb.blockSize);
         AWRITE(dataP[i], current, sb.blockSize);
         data += sb.blockSize;
         addPointer(file, dataP[i]);
+        delete[] current;
     }
     AWRITE(sb.inodeAddress() + file.id * sizeof(inode), reinterpret_cast<char*>(&file), sizeof(inode));
     return errorCode::OK;
@@ -274,10 +288,11 @@ errorCode fileSystem::cp(dirItem& srcItem, size_type destInodeID)
     }
     for (size_t i = 0; i < data.size(); i++)
     {
-        char current[sb.blockSize];
+        char* current = new char[sb.blockSize];
         AREAD(data[i], current, sb.blockSize);
         AWRITE(nData[i], current, sb.blockSize);
         addPointer(dest, nData[i]);
+        delete[] current;
     }
     dest.fileSize = src.fileSize;
     dest.type = src.type;
@@ -381,7 +396,7 @@ error_string_pair fileSystem::ls(size_type inodeID)
     if (dir.type != inode::inode_types::dir)
     {
         DEBUG("ls can be only used on dirs");
-        return std::make_pair(errorCode::PATH_NOT_FOUND,"");
+        return std::make_pair(errorCode::PATH_NOT_FOUND, "");
     }
     std::stringstream out;
     std::vector<dirItemP> dirs = getDirItems(dir);
@@ -407,7 +422,7 @@ error_string_pair fileSystem::ls(size_type inodeID)
             out << std::get<dirItem>(curent).name << std::endl;
         }
     }
-    return std::make_pair(fileSystem::errorCode::OK,out.str());
+    return std::make_pair(fileSystem::errorCode::OK, out.str());
 }
 
 error_string_pair fileSystem::info(size_type parentID, const file_name_t name)
@@ -559,7 +574,7 @@ std::vector<pointer_type> fileSystem::getDataPointers(inode& inode)
         {
             return pointers;
         }
-        pointer_type dataPointres[pointerCount];
+        pointer_type* dataPointres = new pointer_type[pointerCount];
         AREAD(inode.pointers.indirect[i], reinterpret_cast<char*>(dataPointres), pointerCount * sizeof(pointer_type));
         for (size_t i = 0; i < pointerCount; i++)
         {
@@ -568,6 +583,7 @@ std::vector<pointer_type> fileSystem::getDataPointers(inode& inode)
                 pointers.push_back(dataPointres[i]);
             }
         }
+        delete[] dataPointres;
     }
     FATAL("File is bigger than inode can address");
     assert(false);
@@ -585,7 +601,7 @@ std::vector<dirItemP> fileSystem::getDirItems(inode& inode)
     size_t dirItemCount = sb.blockSize / sizeof(dirItem);
     for (auto dataBlock : data)
     {
-        dirItem curent[dirItemCount];
+        dirItem* curent = new dirItem[dirItemCount];
         AREAD(dataBlock, reinterpret_cast<char*>(curent), dirItemCount * sizeof(dirItem));
         for (size_t i = 0; i < dirItemCount; i++)
         {
@@ -595,6 +611,7 @@ std::vector<dirItemP> fileSystem::getDirItems(inode& inode)
                 dirItems.push_back(pair);
             }
         }
+        delete[] curent;
     }
     return dirItems;
 }
@@ -697,15 +714,16 @@ void fileSystem::freeDataBlock(pointer_type dataPointer)
     }
     DEBUG("Free data block on " << STREAMADDRESS(dataPointer));
     it.flip(fileStream);
-    char empty[sb.blockSize];
+    char* empty = new char[sb.blockSize];
 #ifndef NDEBUG
-    std::memset(empty, 'f', sizeof(empty));
+    std::memset(empty, 'f', sb.blockSize);
     empty[0] = '<';
     empty[sizeof(empty) - 1] = '>';
 #else
     std::memset(empty, '\0', sizeof(empty));
 #endif
     AWRITE(dataPointer, empty, sb.blockSize);
+    delete[] empty;
 }
 
 std::vector<pointer_type> fileSystem::alocateDataBlocks(size_t numberOfDataBlocks)

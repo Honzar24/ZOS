@@ -24,11 +24,11 @@ private:
 
 public:
     fileBitIterator(int start, size_t Byte, size_t bit, size_t maxByte, size_t maxbit) :
-        start(start),
         byte(Byte),
         bit(bit),
         maxByte(maxByte),
-        maxbit(maxbit)
+        maxbit(maxbit),
+        start(start)
     {};
     fileBitIterator() : fileBitIterator(0, 0, 0, 0, 0) {};
 
@@ -76,7 +76,7 @@ public:
     {
         byte -= dec / 8;
         bit -= dec % 8;
-        if (bit < 0)
+        if (bit < dec % 8)
         {
             bit %= 8;
             byte--;
@@ -85,7 +85,7 @@ public:
     }
     inline fileBitIterator& operator--()
     {
-        if (--bit == -1)
+        if (bit == 0)
         {
             byte--;
             bit = 7;
@@ -95,7 +95,7 @@ public:
     inline fileBitIterator& operator--(int)
     {
         auto ret = this;
-        if (--bit == -1)
+        if (bit == 0)
         {
             byte--;
             bit = 7;
@@ -175,9 +175,9 @@ public:
     using Iterator = fileBitIterator;
     fileBitArray() {};
     fileBitArray(int start, size_t bitSize) :
+        start(start),
         bitSize(bitSize),
-        byteSize(bitSize / 8 + 1),
-        start(start)
+        byteSize(bitSize / 8 + 1)
     {};
     inline Iterator begin()
     {
