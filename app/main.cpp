@@ -6,7 +6,7 @@
 #include <fileSystem.hpp>
 #include <log.hpp>
 
-constexpr auto DIRSEPARATOR = "/";
+constexpr char DIRSEPARATOR = '/';
 
 size_type curentDir = 0;
 
@@ -15,10 +15,57 @@ void printArgsHelp(char const argv[])
     std::cout << "Run program with only one parametr" << std::endl;
     std::cout << argv << " <FsFile>" << std::endl;
 }
-size_type pathToInode(std::string path)
-{
 
-    return path.at(0);
+std::pair<std::string, std::string> stripName(std::string& name)
+{
+    std::string path, fileName;
+    size_t pos = name.rfind(DIRSEPARATOR);
+    if (pos != std::string::npos)
+    {
+        path = name.substr(0, pos);
+        fileName = name.substr(pos + 1);
+    } else
+    {
+        path = "";
+        fileName = std::move(name);
+    }
+    return std::make_pair(path, fileName);
+}
+
+std::pair<errorCode, size_type> pathToInode(fileSystem& fs, size_type dirID, std::stringstream& tokens);
+
+std::pair<errorCode, size_type> pathToInode(fileSystem& fs, size_type dirID, std::string& path)
+{
+    std::stringstream tokens;
+    tokens << path;
+    return pathToInode(fs, dirID, tokens);
+}
+
+std::pair<errorCode, size_type> pathToInode(fileSystem& fs, size_type dirID, std::stringstream& tokens)
+{
+    std::string token;
+    std::getline(tokens, token, DIRSEPARATOR);
+    if (!tokens)
+    {
+        return std::make_pair(errorCode::OK, dirID);
+    }
+    if (token.compare(".") == 0)
+    {
+        return pathToInode(fs, curentDir, tokens);
+    }
+    if (token.compare("") == 0)
+    {
+        //FIXME:neni zaruceno ze 0 je root ale neni moc dulezite
+        return pathToInode(fs, 0, tokens);
+    }
+    for (auto direntI : fs.readDir(dirID))
+    {
+        if (std::strcmp(direntI.name, token.c_str()) == 0)
+        {
+            return pathToInode(fs, direntI.id, tokens);
+        }
+    }
+    return std::make_pair(errorCode::PATH_NOT_FOUND, 0);
 }
 
 /**
@@ -44,12 +91,12 @@ std::string pwd(fileSystem& fs, size_type inode)
     }
     if (self.id == parent.id)
     {
-        return DIRSEPARATOR;
+        return std::string(1, DIRSEPARATOR);
     }
     std::string ret = pwd(fs, parent.id);
     for (auto direntI : fs.readDir(parent.id))
     {
-        if(direntI.id == self.id)
+        if (direntI.id == self.id)
         {
             ret += direntI.name;
             break;
@@ -64,34 +111,20 @@ std::string pwd(fileSystem& fs, size_type inode)
  *
  * @param fileName
  */
-errorCode cat(fileSystem& fs, std::string fileName)
+errorCode cat(fileSystem& fs, std::string& fileName)
 {
     fs.ls(0);
     fileName.at(0);
     return errorCode::OK;
 }
+
 /**
- * @brief zmeni aktualni umisteni na zadane umisteni
+ * @brief vytvori kopii souboru z disku do VFS
  *
- * @param path new current path
+ * @param fileName
+ * @param VFile
  */
-errorCode cd(fileSystem& fs, std::string path)
-{
-    fs.ls(0);
-    curentDir = atoi(path.c_str());
-    return errorCode::OK;
-}
-/**
- * @brief vypise cestu od root adresare k aktualnimu umisteni
- *
- */
- /**
-  * @brief vytvori kopii souboru z disku do VFS
-  *
-  * @param fileName
-  * @param VFileName
-  */
-errorCode incp(fileSystem& fs, std::string fileName, std::string VFileName)
+errorCode incp(fileSystem& fs, std::string& fileName, std::string& VFile)
 {
     std::fstream file(fileName, std::ios::in);
     if (!file.is_open())
@@ -105,27 +138,39 @@ errorCode incp(fileSystem& fs, std::string fileName, std::string VFileName)
     std::memset(data, 'f', fileSize);
     data[fileSize] = '\0';
     file.read(data, fileSize);
-    //TODO:make path work
-    auto ret = fs.touch(0, VFileName.c_str(), data);
+    size_type dirID;
+    auto pathAndName = stripName(VFile);
+    auto pathQ = pathToInode(fs, curentDir, pathAndName.first);
+    if (pathQ.first != errorCode::OK)
+    {
+        return errorCode::PATH_NOT_FOUND;
+    }
+    dirID = std::get<size_type>(pathQ);
+    auto ret = fs.touch(dirID, pathAndName.second.c_str(), data);
     delete[] data;
     return ret;
 }
 /**
  * @brief vytvori kopii souboru z VFS na disk
  *
- * @param VFileName
+ * @param VFile
  * @param fileName
  */
-errorCode outcp(fileSystem& fs, std::string VFileName, std::string fileName)
+errorCode outcp(fileSystem& fs, std::string& VFileName, std::string& fileName)
 {
     std::fstream file(fileName, std::ios::out | std::ios::trunc);
     if (!file.is_open())
     {
         return errorCode::PATH_NOT_FOUND;
     }
-    //TODO:make path work
-    auto inode = pathToInode(VFileName);
-    auto data = fs.getData(inode);
+    auto path = pathToInode(fs, curentDir, VFileName);
+    errorCode code = std::get<errorCode>(path);
+    if (code != errorCode::OK)
+    {
+        return code;
+    }
+    size_type inodeID = std::get<size_type>(path);
+    auto data = fs.getData(inodeID);
     if (data.second <= 0)
     {
         return errorCode::FILE_NOT_FOUND;
@@ -163,29 +208,6 @@ bool procesLine(fileSystem& fs, std::ostream& out, std::string line)
     stream << line;
     std::string token, arg1, arg2;
     stream >> token;
-    if (token.compare("exit") == 0)
-    {
-        return false;
-    }
-    if (token.compare("mkdir") == 0)
-    {
-        stream >> arg1;
-        //TODO: relative path
-        out << fs.mkdir(arg1.c_str(),curentDir) << std::endl;
-        return true;
-    }
-    
-    if (token.compare("cd") == 0)
-    {
-        stream >> arg1;
-        out << cd(fs, arg1) << std::endl;
-        return true;
-    }
-    if (token.compare("pwd") == 0)
-    {
-        out << pwd(fs, curentDir) << std::endl;
-        return true;
-    }
     if (token.compare("ls") == 0)
     {
         stream >> arg1;
@@ -195,6 +217,50 @@ bool procesLine(fileSystem& fs, std::ostream& out, std::string line)
         {
             std::cout << ret.second;
             return true;
+        }
+        out << code << std::endl;
+        return true;
+    }
+    if (token.compare("cd") == 0)
+    {
+        stream >> arg1;
+        auto cdc = pathToInode(fs, curentDir, arg1);
+        errorCode code = std::get<errorCode>(cdc);
+        if (code == errorCode::OK)
+        {
+            curentDir = std::get<size_type>(cdc);
+        }
+        out << code << std::endl;
+        return true;
+    }
+    if (token.compare("pwd") == 0)
+    {
+        out << pwd(fs, curentDir) << std::endl;
+        return true;
+    }
+    
+    if (token.compare("rm") == 0)
+    {
+        stream >> arg1;
+        auto pathAndName = stripName(arg1);
+        auto cdc = pathToInode(fs, curentDir, pathAndName.first);
+        errorCode code = std::get<errorCode>(cdc);
+        if (code == errorCode::OK)
+        {
+            code = fs.rm(std::get<size_type>(cdc),pathAndName.second.c_str());
+        }
+        out << code << std::endl;
+        return true;
+    }
+    if (token.compare("mkdir") == 0)
+    {
+        stream >> arg1;
+        auto pathAndName = stripName(arg1);
+        auto cdc = pathToInode(fs, curentDir, pathAndName.first);
+        errorCode code = std::get<errorCode>(cdc);
+        if (code == errorCode::OK)
+        {
+            code = fs.mkdir(pathAndName.second.c_str(),std::get<size_type>(cdc));
         }
         out << code << std::endl;
         return true;
@@ -231,6 +297,10 @@ bool procesLine(fileSystem& fs, std::ostream& out, std::string line)
         auto ret = fs.format();
         out << ret << std::endl;
         return true;
+    }
+    if (token.compare("exit") == 0)
+    {
+        return false;
     }
     out << "Unknow command:" << token << std::endl;
     return true;
