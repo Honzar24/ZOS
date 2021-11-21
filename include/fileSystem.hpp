@@ -182,6 +182,35 @@ private:
      */
     errorCode calcAndFormat(size_type size);
 
+    /**
+     * @brief kopiruje src do dest
+     *
+     * @param src
+     * @param dest
+     * @return errorCode OK |FILE NOT FOUND (neni zdroj) |PATH NOT FOUND (neexistuje cilova cesta)
+     */
+    errorCode cp(inode& src, inode& dest);
+
+    /**
+     * @brief prejmenuje src na dest nebo presune src do dest adresare
+     *
+     * @param parent
+     * @param src
+     * @param srcItem
+     * @param dest
+     * @return errorCode
+     */
+    errorCode mv(inode& parent, inode& src, dirItem& srcItem, inode& dest);
+    /**
+     * @brief maze soubor
+     *
+     * @param parent
+     * @param node 
+     * @param item
+     * @return errorCode
+     */
+    errorCode rm(inode& parent, inode& node, dirItem& item);
+
 public:
 
     std::string getName()
@@ -193,7 +222,7 @@ public:
      * @brief vrati obsah souboru
      *
      * @param file
-     * @return std::unique_ptr<char[]>
+     * @return std::pair<std::unique_ptr<char[]>, size_t> [pointer,fileSize]
      */
     std::pair<std::unique_ptr<char[]>, size_t> getData(size_type file);
 
@@ -210,28 +239,32 @@ public:
     /**
      * @brief kopiruje src do dest
      *
-     * @param srcItem
+     * @param parentID
+     * @param srcItemName
      * @param destInodeID
+     * @param destName
      * @return errorCode OK |FILE NOT FOUND (neni zdroj) |PATH NOT FOUND (neexistuje cilova cesta)
      */
-    errorCode cp(dirItem& srcItem, size_type destInodeID);
+    errorCode cp(size_type parentID, file_name_t srcItemName, size_type destInodeID, file_name_t destName);
+
     /**
      * @brief prejmenuje src na dest nebo presune src do dest adresare
      *
      * @param parentID
-     * @param srcInodeID
+     * @param srcItemName
      * @param destInodeID
+     * @param destName
      * @return errorCode
      */
-    errorCode mv(size_type parentID, dirItem& srcItem, size_type destInodeID);
+    errorCode mv(size_type parentID, file_name_t srcItemName, size_type destInodeID, file_name_t destName);
     /**
      * @brief maze soubor
      *
      * @param parentID
-     * @param item
+     * @param itemName
      * @return errorCode
      */
-    errorCode rm(size_type parentID, dirItem& item);
+    errorCode rm(size_type parentID, file_name_t itemName);
 
     /**
     * @brief Zalozeni adresare pod parentInnodeID
@@ -252,9 +285,9 @@ public:
 
     /**
      * @brief imitace posix funkce pro cteni obsahu adresare
-     * 
-     * @param dirID 
-     * @return std::vector<Dirent> 
+     *
+     * @param dirID
+     * @return std::vector<Dirent>
      */
     std::vector<Dirent> readDir(size_type dirID);
 
@@ -338,6 +371,7 @@ public:
 
     ~fileSystem()
     {
+        fileStream.flush();
         fileStream.close();
     }
 };
