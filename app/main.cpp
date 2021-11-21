@@ -6,12 +6,57 @@
 #include <fileSystem.hpp>
 #include <log.hpp>
 
+constexpr auto DIRSEPARATOR = "/";
+
 size_type curentDir = 0;
 
 void printArgsHelp(char const argv[])
 {
     std::cout << "Run program with only one parametr" << std::endl;
     std::cout << argv << " <FsFile>" << std::endl;
+}
+size_type pathToInode(std::string path)
+{
+
+    return path.at(0);
+}
+
+/**
+ * @brief vypise cestu od root adresare k aktualnimu umisteni
+ *
+ */
+std::string pwd(fileSystem& fs, size_type inode)
+{
+    Dirent self, parent;
+    for (auto direntI : fs.readDir(inode))
+    {
+        if (std::strcmp(direntI.name, ".") == 0)
+        {
+            self = direntI;
+            continue;
+        }
+        if (std::strcmp(direntI.name, "..") == 0)
+        {
+            parent = direntI;
+            continue;
+        }
+        //TODO: zastavit pokud oba odkazy nalezeny        
+    }
+    if (self.id == parent.id)
+    {
+        return DIRSEPARATOR;
+    }
+    std::string ret = pwd(fs, parent.id);
+    for (auto direntI : fs.readDir(parent.id))
+    {
+        if(direntI.id == self.id)
+        {
+            ret += direntI.name;
+            break;
+        }
+    }
+    ret += DIRSEPARATOR;
+    return  ret;
 }
 
 /**
@@ -33,7 +78,7 @@ errorCode cat(fileSystem& fs, std::string fileName)
 errorCode cd(fileSystem& fs, std::string path)
 {
     fs.ls(0);
-    path.at(0);
+    curentDir = atoi(path.c_str());
     return errorCode::OK;
 }
 /**
@@ -79,7 +124,7 @@ errorCode outcp(fileSystem& fs, std::string VFileName, std::string fileName)
         return errorCode::PATH_NOT_FOUND;
     }
     //TODO:make path work
-    auto inode = fs.pathToInode(VFileName);
+    auto inode = pathToInode(VFileName);
     auto data = fs.getData(inode);
     if (data.second <= 0)
     {
@@ -89,9 +134,9 @@ errorCode outcp(fileSystem& fs, std::string VFileName, std::string fileName)
     return errorCode::OK;
 }
 
-bool procesLine(fileSystem& fs, std::string line);
+bool procesLine(fileSystem& fs, std::ostream& out, std::string line);
 
-errorCode load(fileSystem& fs, std::string fileName)
+errorCode load(fileSystem& fs, std::ostream& out, std::string fileName)
 {
     std::fstream file(fileName, std::ios::in);
     if (!file.is_open())
@@ -101,18 +146,18 @@ errorCode load(fileSystem& fs, std::string fileName)
     std::string fline;
     for (size_t index = 0;std::getline(file, fline); index++)
     {
-        std::cout << ">" << fline << std::endl;
-        if (!procesLine(fs, fline))
+        out << ">" << fline << std::endl;
+        if (!procesLine(fs, out, fline))
         {
-            std::cout << "Script (" << fileName << ") abnormaly ended on line " << index << ":" << fline << std::endl;
+            out << "Script (" << fileName << ") abnormaly ended on line " << index << ":" << fline << std::endl;
             return errorCode::OK;
         }
     }
-    std::cout << "Script (" << fileName << ") ended" << std::endl;
+    out << "Script (" << fileName << ") ended" << std::endl;
     return errorCode::OK;
 }
 
-bool procesLine(fileSystem& fs, std::string line)
+bool procesLine(fileSystem& fs, std::ostream& out, std::string line)
 {
     std::stringstream stream;
     stream << line;
@@ -122,17 +167,36 @@ bool procesLine(fileSystem& fs, std::string line)
     {
         return false;
     }
+    if (token.compare("mkdir") == 0)
+    {
+        stream >> arg1;
+        //TODO: relative path
+        out << fs.mkdir(arg1.c_str(),curentDir) << std::endl;
+        return true;
+    }
+    
+    if (token.compare("cd") == 0)
+    {
+        stream >> arg1;
+        out << cd(fs, arg1) << std::endl;
+        return true;
+    }
+    if (token.compare("pwd") == 0)
+    {
+        out << pwd(fs, curentDir) << std::endl;
+        return true;
+    }
     if (token.compare("ls") == 0)
     {
         stream >> arg1;
-        auto ret = fs.ls(0);
+        auto ret = fs.ls(curentDir);
         auto code = std::get<errorCode>(ret);
         if (code == errorCode::OK)
         {
             std::cout << ret.second;
             return true;
         }
-        std::cout << code << std::endl;
+        out << code << std::endl;
         return true;
     }
     if (token.compare("incp") == 0)
@@ -146,16 +210,16 @@ bool procesLine(fileSystem& fs, std::string line)
     {
         stream >> arg1;
         stream >> arg2;
-        std::cout << outcp(fs, arg1, arg2) << std::endl;
+        out << outcp(fs, arg1, arg2) << std::endl;
         return true;
     }
     if (token.compare("load") == 0)
     {
         stream >> arg1;
-        std::cout << "Loading comands form:" << arg1 << std::endl;
-        auto ret = load(fs, arg1);
-        std::cout << ret << std::endl;
-        return ret == errorCode::OK;
+        out << "Loading comands form:" << arg1 << std::endl;
+        auto ret = load(fs, out, arg1);
+        out << ret << std::endl;
+        return true;
     }
     if (token.compare("format") == 0)
     {
@@ -165,10 +229,10 @@ bool procesLine(fileSystem& fs, std::string line)
         std::string fileName = fs.getName();
         fs = fileSystem(fileName, sb);
         auto ret = fs.format();
-        std::cout << ret << std::endl;
-        return ret == errorCode::OK;
+        out << ret << std::endl;
+        return true;
     }
-    std::cout << "Unknow command:" << token << std::endl;
+    out << "Unknow command:" << token << std::endl;
     return true;
 }
 
@@ -187,7 +251,7 @@ int main(int argc, char const* argv[])
     do
     {
         std::cout << ">";
-    } while (std::getline(std::cin, line) && procesLine(fs, line));
+    } while (std::getline(std::cin, line) && procesLine(fs, std::cout, line));
     std::cout << "exiting ..." << std::endl;
     return EXIT_SUCCESS;
 }

@@ -59,14 +59,6 @@ fileSystem::fileSystem(std::string& fileName) : fileName(fileName), fileStream(f
     AREAD(0, reinterpret_cast<char*>(&sb), sizeof(superBlock));
 }
 
-size_type fileSystem::pathToInode(std::string path)
-{
-    path.at(0);
-    return 0;
-}
-
-
-
 void fileSystem::createRoot()
 {
     DEBUG("Creating root");
@@ -552,6 +544,29 @@ errorCode fileSystem::rmdir(size_type inodeID)
     freeInode(dir);
     return errorCode::OK;
 }
+
+std::vector<Dirent> fileSystem::readDir(size_type dirID)
+{
+    std::vector<Dirent> dirents;
+    inode dir;
+    AREAD(sb.inodeAddress() + dirID * sizeof(inode), reinterpret_cast<char*>(&dir), sizeof(inode));
+    if (dir.type != inode::inode_types::dir)
+    {
+        DEBUG("readDir can be only called on dirs");
+        return dirents;
+    }
+    for(auto dirItemP:getValidDirItems(dir))
+    {
+        dirItem di = std::get<dirItem>(dirItemP);
+        inode inode;
+        AREAD(sb.inodeAddress() + di.inode_id * sizeof(inode),reinterpret_cast<char*>(&inode), sizeof(inode));
+        Dirent item {di.inode_id,inode.type,"?"};
+        std::strncpy(item.name,di.name,maxFileNameLenght);
+        dirents.emplace_back(item);
+    }
+    return dirents;
+}
+
 
 std::vector<pointer_type> fileSystem::getDataPointers(inode& inode)
 {

@@ -51,6 +51,12 @@
  */
 
 using file_name_t = const char[maxFileNameLenght];
+using Dirent = struct dirent_
+{
+    size_type id;
+    inode::inode_types type;
+    char name[maxFileNameLenght];
+};
 
 class fileSystem
 {
@@ -178,8 +184,6 @@ private:
 
 public:
 
-    size_type pathToInode(std::string path);
-
     std::string getName()
     {
         return fileName;
@@ -245,6 +249,14 @@ public:
      * @return errorCode OK|FILE NOT FOUND (neexistujici adresar)|NOT EMPTY (adresar obsahuje podadresare, nebo soubory)
      */
     errorCode rmdir(size_type inodeID);
+
+    /**
+     * @brief imitace posix funkce pro cteni obsahu adresare
+     * 
+     * @param dirID 
+     * @return std::vector<Dirent> 
+     */
+    std::vector<Dirent> readDir(size_type dirID);
 
     /**
      * @brief Zjistreni obsahu adresare v textove podobe
