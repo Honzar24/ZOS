@@ -228,6 +228,11 @@ errorCode fileSystem::touch(size_type dirID, const char fileName[maxFileNameLeng
     file.type = inode::inode_types::file;
     file.fileSize = std::strlen(data);
     AREAD(sb.inodeAddress() + dirID * sizeof(inode), reinterpret_cast<char*>(&parent), sizeof(inode));
+    if(parent.type != inode::inode_types::dir)
+    {
+        DEBUG("touch can not create file not under directory");
+        return errorCode::PATH_NOT_FOUND;
+    }
     dirItem dirItem(fileName, file.id);
     if (!addDirItem(parent, dirItem))
     {

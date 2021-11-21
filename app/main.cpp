@@ -238,7 +238,7 @@ bool procesLine(fileSystem& fs, std::ostream& out, std::string line)
         out << pwd(fs, curentDir) << std::endl;
         return true;
     }
-    
+
     if (token.compare("rm") == 0)
     {
         stream >> arg1;
@@ -247,7 +247,7 @@ bool procesLine(fileSystem& fs, std::ostream& out, std::string line)
         errorCode code = std::get<errorCode>(cdc);
         if (code == errorCode::OK)
         {
-            code = fs.rm(std::get<size_type>(cdc),pathAndName.second.c_str());
+            code = fs.rm(std::get<size_type>(cdc), pathAndName.second.c_str());
         }
         out << code << std::endl;
         return true;
@@ -256,14 +256,27 @@ bool procesLine(fileSystem& fs, std::ostream& out, std::string line)
     {
         stream >> arg1;
         auto pathAndName = stripName(arg1);
-        auto cdc = pathToInode(fs, curentDir, pathAndName.first);
-        errorCode code = std::get<errorCode>(cdc);
+        auto node = pathToInode(fs, curentDir, pathAndName.first);
+        errorCode code = std::get<errorCode>(node);
         if (code == errorCode::OK)
         {
-            code = fs.mkdir(pathAndName.second.c_str(),std::get<size_type>(cdc));
+            code = fs.mkdir(pathAndName.second.c_str(), std::get<size_type>(node));
         }
         out << code << std::endl;
         return true;
+    }
+    if (token.compare("rmdir") == 0)
+    {
+        stream >> arg1;
+        auto node = pathToInode(fs, curentDir, arg1);
+        errorCode code = std::get<errorCode>(node);
+        if (code == errorCode::OK)
+        {
+            code = fs.rmdir(std::get<size_type>(node));
+        }
+        out << code << std::endl;
+        return true;
+
     }
     if (token.compare("incp") == 0)
     {
@@ -296,6 +309,10 @@ bool procesLine(fileSystem& fs, std::ostream& out, std::string line)
         fs = fileSystem(fileName, sb);
         auto ret = fs.format();
         out << ret << std::endl;
+        if(ret == errorCode::OK)
+        {
+            curentDir = 0;
+        }
         return true;
     }
     if (token.compare("exit") == 0)
