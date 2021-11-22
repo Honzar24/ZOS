@@ -1,4 +1,6 @@
 #include <cstdlib>
+#include <cassert>
+
 #include <iostream>
 #include <string>
 #include <fstream>
@@ -75,20 +77,28 @@ std::pair<errorCode, size_type> pathToInode(fileSystem& fs, size_type dirID, std
 std::string pwd(fileSystem& fs, size_type inode)
 {
     Dirent self, parent;
-    for (auto direntI : fs.readDir(inode))
+    bool foundParent = false, foundSelf = false;
+    auto dirents = fs.readDir(inode);
+    for (auto it = dirents.begin();it != dirents.end();it++)
     {
-        if (std::strcmp(direntI.name, ".") == 0)
+        if (std::strcmp((*it).name, ".") == 0)
         {
-            self = direntI;
+            self = (*it);
+            foundSelf = true;
+            if (foundParent)
+                break;
             continue;
         }
-        if (std::strcmp(direntI.name, "..") == 0)
+        if (std::strcmp((*it).name, "..") == 0)
         {
-            parent = direntI;
+            parent = (*it);
+            foundParent = true;
+            if (foundSelf)
+                break;
             continue;
         }
-        //TODO: zastavit pokud oba odkazy nalezeny        
     }
+    assert(foundParent == true && foundSelf == true);
     if (self.id == parent.id)
     {
         return std::string(1, DIRSEPARATOR);
@@ -146,9 +156,9 @@ errorCode incp(fileSystem& fs, std::string& fileName, std::string& VFile)
         return errorCode::PATH_NOT_FOUND;
     }
     dirID = std::get<size_type>(pathQ);
-    auto ret = fs.touch(dirID, pathAndName.second.c_str(), data);
+    auto ret = fs.touch(dirID, pathAndName.second.c_str(), data, fileSize);
     delete[] data;
-    return ret;
+    return ret.first;
 }
 /**
  * @brief vytvori kopii souboru z VFS na disk
@@ -233,8 +243,8 @@ bool procesLine(fileSystem& fs, std::ostream& out, std::string line)
         out << code << std::endl;
         return true;
     }
-    
-    if(token.compare("mv") == 0)
+
+    if (token.compare("mv") == 0)
     {
         stream >> arg1;
         stream >> arg2;
@@ -247,7 +257,7 @@ bool procesLine(fileSystem& fs, std::ostream& out, std::string line)
 
         if (code1 == errorCode::OK && code2 == errorCode::OK)
         {
-            code1 = fs.mv(std::get<size_type>(path1), pathAndName1.second.c_str(),std::get<size_type>(path2), pathAndName2.second.c_str());
+            code1 = fs.mv(std::get<size_type>(path1), pathAndName1.second.c_str(), std::get<size_type>(path2), pathAndName2.second.c_str());
         }
         out << code1 << std::endl;
         return true;
@@ -329,7 +339,7 @@ bool procesLine(fileSystem& fs, std::ostream& out, std::string line)
         fs = fileSystem(fileName, sb);
         auto ret = fs.format();
         out << ret << std::endl;
-        if(ret == errorCode::OK)
+        if (ret == errorCode::OK)
         {
             curentDir = 0;
         }

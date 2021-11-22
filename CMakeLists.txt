@@ -2,7 +2,6 @@ cmake_minimum_required(VERSION 3.15)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
-add_compile_options(-Wall -Wextra -pedantic -Werror)
 
 project(
     inodefs
@@ -19,6 +18,9 @@ else()
     add_compile_definitions(NLOG)
 endif()
 
+if(CMAKE_BUILD_TYPE EQUAL "DEBUG")
+    add_compile_options(-Wall -Wextra -pedantic -Werror)
+endif(CMAKE_BUILD_TYPE EQUAL "DEBUG")
 
 if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
     set(CMAKE_CXX_EXTENSIONS OFF)
