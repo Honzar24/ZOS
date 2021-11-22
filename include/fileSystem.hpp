@@ -50,12 +50,12 @@
  *
  */
 
-using file_name_t = const char[maxFileNameLenght];
+using file_name_t = const char[fileLiteralLenght];
 using Dirent = struct dirent_
 {
     size_type id;
     inode::inode_types type;
-    char name[maxFileNameLenght];
+    char name[fileLiteralLenght];
 };
 
 class fileSystem
@@ -64,7 +64,7 @@ public:
     enum class errorCode :int8_t {
         UNKNOW = -1,
         OK,
-        CANNOT_CREATE_FILE,
+        CAN_NOT_CREATE_FILE,
         FILE_NOT_FOUND,
         PATH_NOT_FOUND,
         NOT_EMPTY,
@@ -100,7 +100,6 @@ private:
      *
      * @param inode
      * @param dirItem
-     * @return true pridano
      * @return false nelze pridat uz dany literal je obsazen
      */
     bool addDirItem(inode& inode, dirItem& dirItem);
@@ -211,6 +210,17 @@ private:
      */
     errorCode rm(inode& parent, inode& node, dirItem& item);
 
+    /**
+     * @brief vytvori soubor od danym
+     *
+     * @param dirI
+     * @param fileName
+     * @param data
+     * @param fileSize 
+     * @return std::pair<errorCode,size_type> errorcode/nova inoda
+     */
+    std::pair<errorCode,inode> create(inode& dir, std::string& fileName,const char* data,const size_t fileSize);
+
 public:
 
     std::string getName()
@@ -232,9 +242,9 @@ public:
      * @param dirID
      * @param fileName
      * @param data
-     * @return errorCode
+     * @return std::pair<errorCode,size_type> errorcode/id noveho inodu
      */
-    errorCode touch(size_type dirID, file_name_t filename, const char data[] = "");
+    std::pair<errorCode,size_type> touch(size_type dirID, file_name_t filename, const char data[],const size_t fileSize);
 
     /**
      * @brief kopiruje src do dest
@@ -385,8 +395,8 @@ inline std::ostream& operator<<(std::ostream& os, errorCode errorCode)
     case errorCode::OK:
         os << "OK";
         break;
-    case errorCode::CANNOT_CREATE_FILE:
-        os << "CANNOT CREATE FILE";
+    case errorCode::CAN_NOT_CREATE_FILE:
+        os << "CAN NOT CREATE FILE";
         break;
     case errorCode::FILE_NOT_FOUND:
         os << "FILE NOT FOUND";

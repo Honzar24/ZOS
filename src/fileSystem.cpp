@@ -21,13 +21,13 @@
     assert((!fileStream.fail()) && "preSEEKG");fileStream.seekp(pos);assert((!fileStream.fail()) && "posSEEKP")
 
 #define WRITE(data,sizeBytes)\
-    assert((!fileStream.fail()) && "preWRITE");TRACE("Write to  address:" << STREAMADDRESS(fileStream.tellp()) << " size " << sizeBytes);fileStream.write(data, sizeBytes).flush();assert((!fileStream.fail())&& "posWRITE")
+    assert((!fileStream.fail()) && "preWRITE");TRACE("Write to  address:" << STREAMADDRESS(fileStream.tellp()) << " size " << sizeBytes);fileStream.write(data, sizeBytes);assert((!fileStream.fail())&& "posWRITE")
 
 #define AWRITE(address,data,sizeBytes)\
     assert((!fileStream.fail()) && "preAWRITE");SEEKP(address);WRITE(data,sizeBytes)
 
 #define READ(data,sizeBytes)\
-    assert((!fileStream.fail()) && "preREAD");TRACE("Read from address:" << STREAMADDRESS(fileStream.tellg()) << " size " << sizeBytes);fileStream.read(data, sizeBytes);assert((!fileStream.fail()) && "posREAD")
+    fileStream.flush(); assert((!fileStream.fail()) && "preREAD");TRACE("Read from address:" << STREAMADDRESS(fileStream.tellg()) << " size " << sizeBytes);fileStream.read(data, sizeBytes);assert((!fileStream.fail()) && "posREAD")
 
 #define AREAD(address,data,sizeBytes)\
     assert((!fileStream.fail()) && "preAREAD");SEEKG(address);READ(data,sizeBytes);
@@ -108,14 +108,14 @@ void fileSystem::addPointer(inode& inode, pointer_type pointer)
         }
 
     }
-    for (size_t i = 0; i < indirectPointersCount; i++)
+    for (size_t i = 0; i < indirect1PointersCount; i++)
     {
-        if (inode.pointers.indirect[i] == 0)
+        if (inode.pointers.indirect1[i] == 0)
         {
-            inode.pointers.indirect[i] = alocateDataBlock();
+            inode.pointers.indirect1[i] = alocateDataBlock();
         }
 
-        SEEKG(inode.pointers.indirect[i]);
+        SEEKG(inode.pointers.indirect1[i]);
         if (addToIndirect(pointer))
         {
             DEBUG("in indirect" << i);
@@ -215,56 +215,64 @@ std::pair<std::unique_ptr<char[]>, size_t> fileSystem::getData(size_type file)
     return std::make_pair(std::unique_ptr<char[]>(data), inode.fileSize);
 }
 
-errorCode fileSystem::touch(size_type dirID, const char fileName[maxFileNameLenght], const char data[])
+std::pair<errorCode, size_type> fileSystem::touch(size_type dirID, const char fileName[maxFileNameLenght], const char data[], const size_t fileSize)
 {
-    DEBUG("Creating file");
-    inode parent, file;
-    file = alocateNewInode();
-    if (file.id == 0)
-    {
-        DEBUG("touch can not create file inode pool is full");
-        return errorCode::INODE_POOL_FULL;
-    }
-    file.type = inode::inode_types::file;
-    file.fileSize = std::strlen(data);
+    inode parent;
+    std::string filename(fileName);
     AREAD(sb.inodeAddress() + dirID * sizeof(inode), reinterpret_cast<char*>(&parent), sizeof(inode));
     if (parent.type != inode::inode_types::dir)
     {
         DEBUG("touch can not create file not under directory");
-        return errorCode::PATH_NOT_FOUND;
+        return std::make_pair(errorCode::PATH_NOT_FOUND, 0);
     }
-    dirItem dirItem(fileName, file.id);
-    if (!addDirItem(parent, dirItem))
+    auto ret = create(parent, filename, data, fileSize);
+    return std::make_pair(ret.first, ret.second.id);
+}
+
+std::pair<errorCode, inode> fileSystem::create(inode& dir, std::string& fileName,const char* data,const size_t fileSize)
+{
+    DEBUG("Creating file");
+    inode file;
+    file = alocateNewInode();
+    if (file.id == 0)
     {
-        DEBUG("touch parrent dir can not add file");
+        DEBUG("create can not create file inode pool is full");
+        return std::make_pair(errorCode::INODE_POOL_FULL, std::move(file));
+    }
+    file.type = inode::inode_types::file;
+    file.fileSize = fileSize;
+    dirItem dirItem(fileName.c_str(), file.id);
+    if (!addDirItem(dir, dirItem))
+    {
+        DEBUG("create parrent dir can not add file");
         freeInode(file);
-        return errorCode::CANNOT_CREATE_FILE;
+        return std::make_pair(errorCode::EXIST, std::move(file));
     }
     size_t blockCount = file.fileSize % sb.blockSize == 0 ? file.fileSize / sb.blockSize : file.fileSize / sb.blockSize + 1;
     auto dataP = alocateDataBlocks(blockCount);
     if (dataP.size() == 0 && blockCount != 0)
     {
-        DEBUG("touch can not create file not have enough free space");
+        DEBUG("create can not create file not have enough free space");
         freeInode(file);
-        return errorCode::CANNOT_CREATE_FILE;
+        return std::make_pair(errorCode::CAN_NOT_CREATE_FILE, std::move(file));
     }
     for (size_t i = 0; i < blockCount; i++)
     {
         char* current = new char[sb.blockSize];
         std::memset(current, '\0', sb.blockSize);
-        std::strncpy(current, data, sb.blockSize);
+        std::memcpy(current, data, sb.blockSize);
         AWRITE(dataP[i], current, sb.blockSize);
         data += sb.blockSize;
         addPointer(file, dataP[i]);
         delete[] current;
     }
     AWRITE(sb.inodeAddress() + file.id * sizeof(inode), reinterpret_cast<char*>(&file), sizeof(inode));
-    return errorCode::OK;
+    return std::make_pair(errorCode::OK, std::move(file));
 }
 
 errorCode fileSystem::cp(size_type parentID, file_name_t srcItemName, size_type destInodeID, file_name_t destName)
 {
-    inode src, dest, parent, destParent;
+    inode src, parent, destParent;
     AREAD(sb.inodeAddress() + parentID * sizeof(inode), reinterpret_cast<char*>(&parent), sizeof(inode));
     if (parent.type != inode::inode_types::dir)
     {
@@ -292,30 +300,18 @@ errorCode fileSystem::cp(size_type parentID, file_name_t srcItemName, size_type 
         DEBUG("cp parent dir is not found");
         return errorCode::PATH_NOT_FOUND;
     }
-    for (dirItemP dirItemPair : getValidDirItems(destParent))
+    std::string destname(destName); 
+    auto destRet = create(parent,destname , "", 1);
+    if(std::get<errorCode>(destRet) == errorCode::OK)
     {
-        destItem = std::get<dirItem>(dirItemPair);
-        if (std::strcmp(destItem.name, destName) == 0)
-        {
-            DEBUG("cp parent dir already contains this file name");
-            return errorCode::EXIST;
-        }
+        return std::get<errorCode>(destRet);
     }
-    touch(destInodeID, destName);
-    for (dirItemP dirItemPair : getValidDirItems(destParent))
-    {
-        destItem = std::get<dirItem>(dirItemPair);
-        if (std::strcmp(destItem.name, destName) == 0)
-        {
-            AREAD(sb.inodeAddress() + destItem.inode_id * sizeof(inode), reinterpret_cast<char*>(&src), sizeof(inode));
-        }
-    }
-    return cp(src, dest);
+    return cp(src, std::get<inode>(destRet));
 }
 
 errorCode fileSystem::mv(size_type parentID, file_name_t srcItemName, size_type destInodeID, file_name_t destName)
 {
-    inode src, dest, parent, destParent;
+    inode src, parent, destParent;
     AREAD(sb.inodeAddress() + parentID * sizeof(inode), reinterpret_cast<char*>(&parent), sizeof(inode));
     if (parent.type != inode::inode_types::dir)
     {
@@ -343,23 +339,11 @@ errorCode fileSystem::mv(size_type parentID, file_name_t srcItemName, size_type 
         DEBUG("mv parent dir is not found");
         return errorCode::PATH_NOT_FOUND;
     }
-    for (dirItemP dirItemPair : getValidDirItems(destParent))
+    std::string destname(destName);
+    auto destRet = create(parent,destname , "", 1);
+    if(std::get<errorCode>(destRet) == errorCode::OK)
     {
-        destItem = std::get<dirItem>(dirItemPair);
-        if (std::strcmp(destItem.name, destName) == 0)
-        {
-            DEBUG("mv parent dir already contains this file name");
-            return errorCode::EXIST;
-        }
-    }
-    touch(destInodeID, destName);
-    for (dirItemP dirItemPair : getValidDirItems(destParent))
-    {
-        destItem = std::get<dirItem>(dirItemPair);
-        if (std::strcmp(destItem.name, destName) == 0)
-        {
-            AREAD(sb.inodeAddress() + destItem.inode_id * sizeof(inode), reinterpret_cast<char*>(&dest), sizeof(inode));
-        }
+        return std::get<errorCode>(destRet);
     }
 #ifndef NLOG
     if (src.numHardLinks > 0)
@@ -367,7 +351,7 @@ errorCode fileSystem::mv(size_type parentID, file_name_t srcItemName, size_type 
         INFO("mv moving hard pointed inode making all hard link invalid");
     }
 #endif
-    return mv(parent, src, srcItem, dest);
+    return mv(parent, src, srcItem, std::get<inode>(destRet));
 }
 
 errorCode fileSystem::rm(size_type parentID, file_name_t itemName)
@@ -400,7 +384,7 @@ errorCode fileSystem::cp(inode& src, inode& dest)
     if (data.size() > nData.size())
     {
         FATAL("Can not copy file not have enough free space");
-        return errorCode::CANNOT_CREATE_FILE;
+        return errorCode::CAN_NOT_CREATE_FILE;
     }
     for (size_t i = 0; i < data.size(); i++)
     {
@@ -459,9 +443,9 @@ errorCode fileSystem::rm(inode& parent, inode& node, dirItem& item)
     {
         freeDataBlock(pointer);
     }
-    for (size_t i = 0; i < indirectPointersCount; i++)
+    for (size_t i = 0; i < indirect1PointersCount; i++)
     {
-        freeDataBlock(node.pointers.indirect[i]);
+        freeDataBlock(node.pointers.indirect1[i]);
     }
     freeInode(node);
     inode empty;
@@ -558,13 +542,13 @@ errorCode fileSystem::ln(size_type srcID, size_type destDirID, const file_name_t
     if (parent.type != inode::inode_types::dir)
     {
         DEBUG("ln can not add link to not dir inode");
-        return errorCode::CANNOT_CREATE_FILE;
+        return errorCode::CAN_NOT_CREATE_FILE;
     }
     AREAD(sb.inodeAddress() + srcID * sizeof(inode), reinterpret_cast<char*>(&src), sizeof(inode));
     if (src.type != inode::inode_types::file)
     {
         DEBUG("ln can not add link to not dir inode");
-        return errorCode::CANNOT_CREATE_FILE;
+        return errorCode::CAN_NOT_CREATE_FILE;
     }
     dirItem linkItem(fileName, srcID);
     bool added = addDirItem(parent, linkItem);
@@ -649,7 +633,7 @@ std::vector<Dirent> fileSystem::readDir(size_type dirID)
         inode inode;
         AREAD(sb.inodeAddress() + di.inode_id * sizeof(inode), reinterpret_cast<char*>(&inode), sizeof(inode));
         Dirent item{ di.inode_id,inode.type,"?" };
-        std::strncpy(item.name, di.name, maxFileNameLenght);
+        std::strncpy(item.name, di.name, fileLiteralLenght);
         dirents.emplace_back(item);
     }
     return dirents;
@@ -671,14 +655,14 @@ std::vector<pointer_type> fileSystem::getDataPointers(inode& inode)
 
     }
     size_t pointerCount = sb.blockSize / sizeof(pointer_type);
-    for (size_t i = 0; i < indirectPointersCount; i++)
+    for (size_t i = 0; i < indirect1PointersCount; i++)
     {
-        if (inode.pointers.indirect[i] == 0)
+        if (inode.pointers.indirect1[i] == 0)
         {
             return pointers;
         }
         pointer_type* dataPointres = new pointer_type[pointerCount];
-        AREAD(inode.pointers.indirect[i], reinterpret_cast<char*>(dataPointres), pointerCount * sizeof(pointer_type));
+        AREAD(inode.pointers.indirect1[i], reinterpret_cast<char*>(dataPointres), pointerCount * sizeof(pointer_type));
         for (size_t i = 0; i < pointerCount; i++)
         {
             if (dataPointres[i] != 0)
@@ -794,13 +778,11 @@ pointer_type fileSystem::alocateDataBlock()
     }
     pointer_type pointer = sb.dataAddress() + index * sb.blockSize;
     DEBUG("Alocating Data block " << index << " on address:" << STREAMADDRESS(pointer));
-#ifndef NDEBUG
     DEBUG("Zeroing Data Block " << index);
     char* zero = new char[sb.blockSize];
     std::memset(zero, '\0', sb.blockSize);
     AWRITE(pointer, zero, sb.blockSize);
     delete[] zero;
-#endif
     return pointer;
 }
 
@@ -823,7 +805,7 @@ void fileSystem::freeDataBlock(pointer_type dataPointer)
     empty[0] = '<';
     empty[sizeof(empty) - 1] = '>';
 #else
-    std::memset(empty, '\0', sizeof(empty));
+    std::memset(empty, '\0', sb.blockSize);
 #endif
     AWRITE(dataPointer, empty, sb.blockSize);
     delete[] empty;
@@ -887,7 +869,7 @@ errorCode fileSystem::format()
     if (!fileStream.is_open())
     {
         FATAL("File " << fileName << " can not be create by program. " << strerror(errno));
-        return errorCode::CANNOT_CREATE_FILE;
+        return errorCode::CAN_NOT_CREATE_FILE;
     }
     DEBUG("Formating");
     DEBUG("Super Block");
