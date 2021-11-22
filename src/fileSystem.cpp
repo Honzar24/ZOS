@@ -228,7 +228,7 @@ errorCode fileSystem::touch(size_type dirID, const char fileName[maxFileNameLeng
     file.type = inode::inode_types::file;
     file.fileSize = std::strlen(data);
     AREAD(sb.inodeAddress() + dirID * sizeof(inode), reinterpret_cast<char*>(&parent), sizeof(inode));
-    if(parent.type != inode::inode_types::dir)
+    if (parent.type != inode::inode_types::dir)
     {
         DEBUG("touch can not create file not under directory");
         return errorCode::PATH_NOT_FOUND;
@@ -358,7 +358,7 @@ errorCode fileSystem::mv(size_type parentID, file_name_t srcItemName, size_type 
         destItem = std::get<dirItem>(dirItemPair);
         if (std::strcmp(destItem.name, destName) == 0)
         {
-            AREAD(sb.inodeAddress() + destItem.inode_id * sizeof(inode), reinterpret_cast<char*>(&src), sizeof(inode));
+            AREAD(sb.inodeAddress() + destItem.inode_id * sizeof(inode), reinterpret_cast<char*>(&dest), sizeof(inode));
         }
     }
 #ifndef NLOG
@@ -423,7 +423,7 @@ errorCode fileSystem::mv(inode& parent, inode& src, dirItem& srcItem, inode& des
     {
         DEBUG("mv parent can not remove the src");
         return errorCode::FILE_NOT_FOUND;
-    }    
+    }
     auto data = getDataPointers(src);
     dest.pointers = src.pointers;
     dest.fileSize = src.fileSize;

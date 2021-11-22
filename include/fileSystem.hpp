@@ -250,10 +250,10 @@ public:
     /**
      * @brief prejmenuje src na dest nebo presune src do dest adresare
      *
-     * @param parentID
-     * @param srcItemName
-     * @param destInodeID
-     * @param destName
+     * @param parentID dir obsahujici src
+     * @param srcItemName src name
+     * @param destInodeID dest dir
+     * @param destName dest name
      * @return errorCode
      */
     errorCode mv(size_type parentID, file_name_t srcItemName, size_type destInodeID, file_name_t destName);

@@ -233,6 +233,26 @@ bool procesLine(fileSystem& fs, std::ostream& out, std::string line)
         out << code << std::endl;
         return true;
     }
+    
+    if(token.compare("mv") == 0)
+    {
+        stream >> arg1;
+        stream >> arg2;
+        auto pathAndName1 = stripName(arg1);
+        auto path1 = pathToInode(fs, curentDir, pathAndName1.first);
+        auto pathAndName2 = stripName(arg2);
+        auto path2 = pathToInode(fs, curentDir, pathAndName2.first);
+        errorCode code1 = std::get<errorCode>(path1);
+        errorCode code2 = std::get<errorCode>(path2);
+
+        if (code1 == errorCode::OK && code2 == errorCode::OK)
+        {
+            code1 = fs.mv(std::get<size_type>(path1), pathAndName1.second.c_str(),std::get<size_type>(path2), pathAndName2.second.c_str());
+        }
+        out << code1 << std::endl;
+        return true;
+    }
+
     if (token.compare("pwd") == 0)
     {
         out << pwd(fs, curentDir) << std::endl;
