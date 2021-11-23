@@ -516,6 +516,22 @@ error_string_pair fileSystem::ls(size_type inodeID)
     }
     return std::make_pair(fileSystem::errorCode::OK, out.str());
 }
+void printPointers(std::ostream& out,pointer_type* pointers,size_t size,const char* text)
+{
+    if(size < 1 || pointers[0] == 0)
+    {
+        return;
+    }
+    out.write(text,std::strlen(text));
+    out << "[";
+    out << STREAMADDRESS(pointers[0]);
+    for (size_t i = 1; i < size; i++)
+    {
+        if(pointers[i] != 0)
+            out << "," << STREAMADDRESS(pointers[i]);
+    }
+    out << "]";
+}
 
 error_string_pair fileSystem::info(size_type parentID, c_file_name_t name)
 {
@@ -558,19 +574,9 @@ error_string_pair fileSystem::info(size_type parentID, c_file_name_t name)
     out << name << " - ";
     out << inode.fileSize << " - ";
     out << inode.id << " - ";
-    auto pointers = getDataPointers(inode);
-    out << pointers.size() << " data blocks on addresses[";
-    auto it = pointers.begin();
-    if (it != pointers.end())
-    {
-        out << STREAMADDRESS(*it);
-        it++;
-    }
-    for (; it != pointers.end();it++)
-    {
-        out << "," << STREAMADDRESS(*it);
-    }
-    out << "]";
+    printPointers(out , inode.pointers.direct,directPointersCount,"direct");
+    printPointers(out , inode.pointers.indirect1,indirect1PointersCount,"indirect 1");
+    printPointers(out , inode.pointers.indirect2,indirect2PointersCount,"indirect 2");    
     return std::make_pair(errorCode::OK, out.str());
 }
 
