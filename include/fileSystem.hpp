@@ -49,8 +49,8 @@
  *
  *
  */
-
-using file_name_t = const char[fileLiteralLenght];
+using file_name_t = char[fileLiteralLenght];
+using c_file_name_t = const file_name_t;
 using Dirent = struct dirent_
 {
     size_type id;
@@ -204,7 +204,7 @@ private:
      * @brief maze soubor
      *
      * @param parent
-     * @param node 
+     * @param node
      * @param item
      * @return errorCode
      */
@@ -216,10 +216,10 @@ private:
      * @param dirI
      * @param fileName
      * @param data
-     * @param fileSize 
+     * @param fileSize
      * @return std::pair<errorCode,size_type> errorcode/nova inoda
      */
-    std::pair<errorCode,inode> create(inode& dir, std::string& fileName,const char* data,const size_t fileSize);
+    std::pair<errorCode, inode> create(inode& dir, std::string& fileName, const char* data, const size_t fileSize);
 
 public:
 
@@ -244,7 +244,7 @@ public:
      * @param data
      * @return std::pair<errorCode,size_type> errorcode/id noveho inodu
      */
-    std::pair<errorCode,size_type> touch(size_type dirID, file_name_t filename, const char data[],const size_t fileSize);
+    std::pair<errorCode, size_type> touch(size_type dirID, c_file_name_t filename, const char data[], const size_t fileSize);
 
     /**
      * @brief kopiruje src do dest
@@ -255,7 +255,7 @@ public:
      * @param destName
      * @return errorCode OK |FILE NOT FOUND (neni zdroj) |PATH NOT FOUND (neexistuje cilova cesta)
      */
-    errorCode cp(size_type parentID, file_name_t srcItemName, size_type destInodeID, file_name_t destName);
+    errorCode cp(size_type parentID, c_file_name_t srcItemName, size_type destInodeID, c_file_name_t destName);
 
     /**
      * @brief prejmenuje src na dest nebo presune src do dest adresare
@@ -266,7 +266,7 @@ public:
      * @param destName dest name
      * @return errorCode
      */
-    errorCode mv(size_type parentID, file_name_t srcItemName, size_type destInodeID, file_name_t destName);
+    errorCode mv(size_type parentID, c_file_name_t srcItemName, size_type destInodeID, c_file_name_t destName);
     /**
      * @brief maze soubor
      *
@@ -274,7 +274,7 @@ public:
      * @param itemName
      * @return errorCode
      */
-    errorCode rm(size_type parentID, file_name_t itemName);
+    errorCode rm(size_type parentID, c_file_name_t itemName);
 
     /**
     * @brief Zalozeni adresare pod parentInnodeID
@@ -288,10 +288,11 @@ public:
     /**
      * @brief Smazani prazneho adresare
      *
-     * @param inodeID
+     * @param dirID
+     * @param dirName
      * @return errorCode OK|FILE NOT FOUND (neexistujici adresar)|NOT EMPTY (adresar obsahuje podadresare, nebo soubory)
      */
-    errorCode rmdir(size_type inodeID);
+    errorCode rmdir(size_type dirID, c_file_name_t dirName);
 
     /**
      * @brief imitace posix funkce pro cteni obsahu adresare
@@ -317,7 +318,7 @@ public:
      * @param name
      * @return error_string_pair OK | FILE NOT FOUND pokud OK tak v stringu jsou ulozeny informace o inodu
      */
-    error_string_pair info(size_type parentID, const file_name_t name);
+    error_string_pair info(size_type parentID, const c_file_name_t name);
 
     /**
      * @brief vytvori hard link na soubor src do adresare destDirID s jmenem fileName
@@ -327,7 +328,7 @@ public:
      * @param fileName
      * @return errorCode
      */
-    errorCode ln(size_type srcID, size_type destDirID, const file_name_t fileName);
+    errorCode ln(size_type srcID, size_type destDirID, const c_file_name_t fileName);
 
 
     /**

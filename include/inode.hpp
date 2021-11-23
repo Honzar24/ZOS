@@ -9,7 +9,9 @@ struct inode_poiters
     //prime ukazatele na databloky
     pointer_type direct[directPointersCount];
     // neprimi ukazatel 1.radu => na blok ukazatelu na databloky
-    pointer_type indirect[indirectPointersCount];
+    pointer_type indirect1[indirect1PointersCount];
+    // neprimi ukazatel 2.radu => 1.radu => na blok ukazatelu na databloky
+    pointer_type indirect2[indirect1PointersCount];
 };
 
 
@@ -27,7 +29,7 @@ public:
     inode_types type;
     //Velikost souboru v Bajtech
     size_type fileSize;
-    //Pocet linku ukazujici na teto inode
+    //Pocet linku ukazujici na tento inode
     counter_type numHardLinks;
     inode_poiters pointers;
 public:

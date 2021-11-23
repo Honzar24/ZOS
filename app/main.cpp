@@ -22,6 +22,11 @@ std::pair<std::string, std::string> stripName(std::string& name)
 {
     std::string path, fileName;
     size_t pos = name.rfind(DIRSEPARATOR);
+    if (pos == name.size() - 1)
+    {
+        name = name.substr(0, pos);
+        pos = name.rfind(DIRSEPARATOR);
+    }
     if (pos != std::string::npos)
     {
         path = name.substr(0, pos);
@@ -168,11 +173,6 @@ errorCode incp(fileSystem& fs, std::string& fileName, std::string& VFile)
  */
 errorCode outcp(fileSystem& fs, std::string& VFileName, std::string& fileName)
 {
-    std::fstream file(fileName, std::ios::out | std::ios::trunc);
-    if (!file.is_open())
-    {
-        return errorCode::PATH_NOT_FOUND;
-    }
     auto path = pathToInode(fs, curentDir, VFileName);
     errorCode code = std::get<errorCode>(path);
     if (code != errorCode::OK)
@@ -185,7 +185,14 @@ errorCode outcp(fileSystem& fs, std::string& VFileName, std::string& fileName)
     {
         return errorCode::FILE_NOT_FOUND;
     }
+    std::fstream file(fileName, std::ios::out | std::ios::trunc | std::ios::binary);
+    if (!file.is_open())
+    {
+        return errorCode::PATH_NOT_FOUND;
+    }
     file.write(data.first.get(), data.second);
+    file.flush();
+    file.close();
     return errorCode::OK;
 }
 
@@ -243,6 +250,24 @@ bool procesLine(fileSystem& fs, std::ostream& out, std::string line)
         out << code << std::endl;
         return true;
     }
+    if (token.compare("cp") == 0)
+    {
+        stream >> arg1;
+        stream >> arg2;
+        auto pathAndName1 = stripName(arg1);
+        auto path1 = pathToInode(fs, curentDir, pathAndName1.first);
+        auto pathAndName2 = stripName(arg2);
+        auto path2 = pathToInode(fs, curentDir, pathAndName2.first);
+        errorCode code1 = std::get<errorCode>(path1);
+        errorCode code2 = std::get<errorCode>(path2);
+
+        if (code1 == errorCode::OK && code2 == errorCode::OK)
+        {
+            code1 = fs.cp(std::get<size_type>(path1), pathAndName1.second.c_str(), std::get<size_type>(path2), pathAndName2.second.c_str());
+        }
+        out << code1 << std::endl;
+        return true;
+    }
 
     if (token.compare("mv") == 0)
     {
@@ -298,15 +323,35 @@ bool procesLine(fileSystem& fs, std::ostream& out, std::string line)
     if (token.compare("rmdir") == 0)
     {
         stream >> arg1;
+        auto pathAndName = stripName(arg1);
         auto node = pathToInode(fs, curentDir, arg1);
         errorCode code = std::get<errorCode>(node);
         if (code == errorCode::OK)
         {
-            code = fs.rmdir(std::get<size_type>(node));
+            code = fs.rmdir(std::get<size_type>(node), pathAndName.second.c_str());
         }
         out << code << std::endl;
         return true;
 
+    }
+    if (token.compare("info") == 0)
+    {
+        stream >> arg1;
+        auto pathAndName = stripName(arg1);
+        auto node = pathToInode(fs, curentDir, pathAndName.first);
+        errorCode code = std::get<errorCode>(node);
+        if (code == errorCode::OK)
+        {
+            auto ret = fs.info(std::get<size_type>(node), pathAndName.second.c_str());
+            code = std::get<errorCode>(ret);
+            if (code == errorCode::OK)
+            {
+                out << ret.second << std::endl;
+                return true;
+            }
+        }
+        out << code << std::endl;
+        return true;
     }
     if (token.compare("incp") == 0)
     {

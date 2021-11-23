@@ -21,7 +21,7 @@ public:
     //velikost bloku v Bytech           
     size_type blockSize;
 
-        //pocet inodu
+    //pocet inodu
     size_type inodeCount;
 
     //pocet bloku        

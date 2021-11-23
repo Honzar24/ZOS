@@ -118,10 +118,36 @@ void fileSystem::addPointer(inode& inode, pointer_type pointer)
         SEEKG(inode.pointers.indirect1[i]);
         if (addToIndirect(pointer))
         {
-            DEBUG("in indirect" << i);
+            DEBUG("in indirect1 " << i);
             return;
         }
     }
+    size_t pointerCount = sb.blockSize / sizeof(pointer_type);
+    pointer_type* pointerBlock = new pointer_type[pointerCount];
+    for (size_t i = 0; i < indirect2PointersCount; i++)
+    {
+        if (inode.pointers.indirect2[i] == 0)
+        {
+            inode.pointers.indirect2[i] = alocateDataBlock();
+        }
+        AREAD(inode.pointers.indirect2[i], reinterpret_cast<char*>(pointerBlock), pointerCount * sizeof(pointer_type));
+        for (size_t j = 0; j < pointerCount; j++)
+        {
+            if (pointerBlock[j] == 0)
+            {
+                pointerBlock[j] = alocateDataBlock();
+                AWRITE(inode.pointers.indirect2[i] + j * sizeof(pointer_type), reinterpret_cast<char*>(&(pointerBlock[j])), sizeof(pointer_type));
+            }
+            SEEKG(pointerBlock[j]);
+            if (addToIndirect(pointer))
+            {
+                DEBUG("in indirect2 " << j);
+                delete[] pointerBlock;
+                return;
+            }
+        }
+    }
+    delete[] pointerBlock;
     ERROR("Inode address pool overflow");
     assert(false);
 }
@@ -229,7 +255,7 @@ std::pair<errorCode, size_type> fileSystem::touch(size_type dirID, const char fi
     return std::make_pair(ret.first, ret.second.id);
 }
 
-std::pair<errorCode, inode> fileSystem::create(inode& dir, std::string& fileName,const char* data,const size_t fileSize)
+std::pair<errorCode, inode> fileSystem::create(inode& dir, std::string& fileName, const char* data, const size_t fileSize)
 {
     DEBUG("Creating file");
     inode file;
@@ -270,7 +296,7 @@ std::pair<errorCode, inode> fileSystem::create(inode& dir, std::string& fileName
     return std::make_pair(errorCode::OK, std::move(file));
 }
 
-errorCode fileSystem::cp(size_type parentID, file_name_t srcItemName, size_type destInodeID, file_name_t destName)
+errorCode fileSystem::cp(size_type parentID, c_file_name_t srcItemName, size_type destInodeID, c_file_name_t destName)
 {
     inode src, parent, destParent;
     AREAD(sb.inodeAddress() + parentID * sizeof(inode), reinterpret_cast<char*>(&parent), sizeof(inode));
@@ -300,16 +326,16 @@ errorCode fileSystem::cp(size_type parentID, file_name_t srcItemName, size_type 
         DEBUG("cp parent dir is not found");
         return errorCode::PATH_NOT_FOUND;
     }
-    std::string destname(destName); 
-    auto destRet = create(parent,destname , "", 1);
-    if(std::get<errorCode>(destRet) == errorCode::OK)
+    std::string destname(destName);
+    auto destRet = create(destParent, destname, "", 0);
+    if (std::get<errorCode>(destRet) != errorCode::OK)
     {
         return std::get<errorCode>(destRet);
     }
     return cp(src, std::get<inode>(destRet));
 }
 
-errorCode fileSystem::mv(size_type parentID, file_name_t srcItemName, size_type destInodeID, file_name_t destName)
+errorCode fileSystem::mv(size_type parentID, c_file_name_t srcItemName, size_type destInodeID, c_file_name_t destName)
 {
     inode src, parent, destParent;
     AREAD(sb.inodeAddress() + parentID * sizeof(inode), reinterpret_cast<char*>(&parent), sizeof(inode));
@@ -340,8 +366,8 @@ errorCode fileSystem::mv(size_type parentID, file_name_t srcItemName, size_type 
         return errorCode::PATH_NOT_FOUND;
     }
     std::string destname(destName);
-    auto destRet = create(parent,destname , "", 1);
-    if(std::get<errorCode>(destRet) == errorCode::OK)
+    auto destRet = create(destParent, destname, "", 0);
+    if (std::get<errorCode>(destRet) != errorCode::OK)
     {
         return std::get<errorCode>(destRet);
     }
@@ -354,7 +380,7 @@ errorCode fileSystem::mv(size_type parentID, file_name_t srcItemName, size_type 
     return mv(parent, src, srcItem, std::get<inode>(destRet));
 }
 
-errorCode fileSystem::rm(size_type parentID, file_name_t itemName)
+errorCode fileSystem::rm(size_type parentID, c_file_name_t itemName)
 {
     inode inode, parent;
     dirItem item;
@@ -384,8 +410,10 @@ errorCode fileSystem::cp(inode& src, inode& dest)
     if (data.size() > nData.size())
     {
         FATAL("Can not copy file not have enough free space");
+        freeInode(dest);
         return errorCode::CAN_NOT_CREATE_FILE;
     }
+    assert(dest.fileSize == 0);
     for (size_t i = 0; i < data.size(); i++)
     {
         char* current = new char[sb.blockSize];
@@ -489,7 +517,7 @@ error_string_pair fileSystem::ls(size_type inodeID)
     return std::make_pair(fileSystem::errorCode::OK, out.str());
 }
 
-error_string_pair fileSystem::info(size_type parentID, const file_name_t name)
+error_string_pair fileSystem::info(size_type parentID, c_file_name_t name)
 {
     inode parent, inode;
     AREAD(sb.inodeAddress() + parentID * sizeof(inode), reinterpret_cast<char*>(&parent), sizeof(inode));
@@ -501,10 +529,16 @@ error_string_pair fileSystem::info(size_type parentID, const file_name_t name)
     auto dirItems = getValidDirItems(parent);
     bool found = false;
     dirItem item;
+    file_name_t sName;
+    std::strcpy(sName, name);
+    if (std::strcmp("", name) == 0)
+    {
+        std::strcpy(sName, ".");
+    }
     for (auto i : dirItems)
     {
         item = std::get<dirItem>(i);
-        if (std::strcmp(item.name, name) == 0)
+        if (std::strcmp(item.name, sName) == 0)
         {
             AREAD(sb.inodeAddress() + item.inode_id * sizeof(inode), reinterpret_cast<char*>(&inode), sizeof(inode));
             found = true;
@@ -517,7 +551,11 @@ error_string_pair fileSystem::info(size_type parentID, const file_name_t name)
         return std::make_pair(errorCode::FILE_NOT_FOUND, std::string());
     }
     std::stringstream out;
-    out << item.name << " - ";
+    if (inode.id == 0)
+    {
+        name = "/";
+    }
+    out << name << " - ";
     out << inode.fileSize << " - ";
     out << inode.id << " - ";
     auto pointers = getDataPointers(inode);
@@ -526,6 +564,7 @@ error_string_pair fileSystem::info(size_type parentID, const file_name_t name)
     if (it != pointers.end())
     {
         out << STREAMADDRESS(*it);
+        it++;
     }
     for (; it != pointers.end();it++)
     {
@@ -535,7 +574,7 @@ error_string_pair fileSystem::info(size_type parentID, const file_name_t name)
     return std::make_pair(errorCode::OK, out.str());
 }
 
-errorCode fileSystem::ln(size_type srcID, size_type destDirID, const file_name_t fileName)
+errorCode fileSystem::ln(size_type srcID, size_type destDirID, const c_file_name_t fileName)
 {
     inode parent, src;
     AREAD(sb.inodeAddress() + destDirID * sizeof(inode), reinterpret_cast<char*>(&parent), sizeof(inode));
@@ -591,10 +630,10 @@ errorCode fileSystem::mkdir(const char dirName[fileLiteralLenght], size_type par
     return errorCode::OK;
 }
 
-errorCode fileSystem::rmdir(size_type inodeID)
+errorCode fileSystem::rmdir(size_type dirID, c_file_name_t dirName)
 {
     inode dir;
-    AREAD(sb.inodeAddress() + inodeID * sizeof(inode), reinterpret_cast<char*>(&dir), sizeof(inode));
+    AREAD(sb.inodeAddress() + dirID * sizeof(inode), reinterpret_cast<char*>(&dir), sizeof(inode));
     if (dir.type != inode::inode_types::dir)
     {
         DEBUG("rmdir can be only called on dirs");
@@ -607,9 +646,11 @@ errorCode fileSystem::rmdir(size_type inodeID)
         return errorCode::NOT_EMPTY;
     }
     inode parent;
-    auto item = std::get<dirItem>(subDirs[1]);
-    AREAD(sb.inodeAddress() + item.inode_id * sizeof(inode), reinterpret_cast<char*>(&parent), sizeof(inode));
-    bool remove = removeDirItem(parent, item);
+    dirItem selfitem;
+    std::strcpy(selfitem.name, dirName);
+    selfitem.inode_id = dirID;
+    AREAD(sb.inodeAddress() + std::get<dirItem>(subDirs[1]).inode_id * sizeof(inode), reinterpret_cast<char*>(&parent), sizeof(inode));
+    bool remove = removeDirItem(parent, selfitem);
     assert(remove || "removeDirItem");
     AWRITE(sb.inodeAddress() + parent.id * sizeof(inode), reinterpret_cast<char*>(&parent), sizeof(inode));
     freeDataBlock(dir.pointers.direct[0]);
@@ -655,23 +696,47 @@ std::vector<pointer_type> fileSystem::getDataPointers(inode& inode)
 
     }
     size_t pointerCount = sb.blockSize / sizeof(pointer_type);
+    pointer_type* dataPointres = new pointer_type[pointerCount];
     for (size_t i = 0; i < indirect1PointersCount; i++)
     {
         if (inode.pointers.indirect1[i] == 0)
         {
             return pointers;
         }
-        pointer_type* dataPointres = new pointer_type[pointerCount];
+
         AREAD(inode.pointers.indirect1[i], reinterpret_cast<char*>(dataPointres), pointerCount * sizeof(pointer_type));
-        for (size_t i = 0; i < pointerCount; i++)
+        for (size_t j = 0; j < pointerCount; j++)
         {
-            if (dataPointres[i] != 0)
+            if (dataPointres[j] != 0)
             {
-                pointers.push_back(dataPointres[i]);
+                pointers.push_back(dataPointres[j]);
             }
         }
-        delete[] dataPointres;
     }
+    pointer_type* dataPointersPointres = new pointer_type[pointerCount];
+    for (size_t i = 0; i < indirect2PointersCount; i++)
+    {
+        if (inode.pointers.indirect2[i] == 0)
+        {
+            return pointers;
+        }
+        AREAD(inode.pointers.indirect2[i], reinterpret_cast<char*>(dataPointersPointres), pointerCount * sizeof(pointer_type));
+        for (size_t j = 0; j < pointerCount; j++)
+        {
+            if (dataPointersPointres[j] == 0)
+                continue;
+            AREAD(dataPointersPointres[j], reinterpret_cast<char*>(dataPointres), pointerCount * sizeof(pointer_type));
+            for (size_t k = 0; k < pointerCount; k++)
+            {
+                if (dataPointres[k] == 0)
+                    continue;
+                pointers.push_back(dataPointres[k]);
+
+            }
+        }
+    }
+    delete[] dataPointersPointres;
+    delete[] dataPointres;
     FATAL("File is bigger than inode can address");
     assert(false);
     return pointers;
