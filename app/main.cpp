@@ -123,11 +123,11 @@ std::string pwd(fileSystem& fs, size_type inode)
 
 /**
  * @brief vypise obsah souboru jako text na vystupni stream
- * 
- * @param fs 
- * @param out 
- * @param fileName 
- * @return errorCode 
+ *
+ * @param fs
+ * @param out
+ * @param fileName
+ * @return errorCode
  */
 errorCode cat(fileSystem& fs, std::ostream& out, std::string fileName)
 {
@@ -135,9 +135,9 @@ errorCode cat(fileSystem& fs, std::ostream& out, std::string fileName)
     if (fileQ.first != errorCode::OK)
     {
         return errorCode::PATH_NOT_FOUND;
-    }    
+    }
     auto data = fs.getData(std::get<size_type>(fileQ));
-    out.write(data.first.get(),data.second) << std::endl;
+    out.write(data.first.get(), data.second) << std::endl;
     return errorCode::OK;
 }
 
@@ -316,11 +316,11 @@ bool procesLine(fileSystem& fs, std::ostream& out, std::string line)
         return true;
     }
 
-    if(token.compare("cat") == 0)
+    if (token.compare("cat") == 0)
     {
         stream >> arg1;
-        auto ret = cat(fs,out,arg1);
-        if(ret != errorCode::OK)
+        auto ret = cat(fs, out, arg1);
+        if (ret != errorCode::OK)
         {
             out << ret << std::endl;
         }
@@ -398,7 +398,14 @@ bool procesLine(fileSystem& fs, std::ostream& out, std::string line)
     if (token.compare("format") == 0)
     {
         stream >> arg1;
-        int diskSize = std::atoi(arg1.c_str());
+        int diskSize, pos = arg1.rfind("MB");
+        if (pos != std::string::npos)
+        {
+            diskSize = std::atoi(arg1.substr(0, pos).c_str());
+            diskSize *= 1024 * 1024;
+        } else {
+            diskSize = std::atoi(arg1.c_str());
+        }
         superBlock sb(diskSize);
         std::string fileName = fs.getName();
         fs = fileSystem(fileName, sb);
