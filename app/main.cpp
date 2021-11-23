@@ -122,14 +122,22 @@ std::string pwd(fileSystem& fs, size_type inode)
 }
 
 /**
- * @brief vypise obsah souboru jako text
- *
- * @param fileName
+ * @brief vypise obsah souboru jako text na vystupni stream
+ * 
+ * @param fs 
+ * @param out 
+ * @param fileName 
+ * @return errorCode 
  */
-errorCode cat(fileSystem& fs, std::string& fileName)
+errorCode cat(fileSystem& fs, std::ostream& out, std::string fileName)
 {
-    fs.ls(0);
-    fileName.at(0);
+    auto fileQ = pathToInode(fs, curentDir, fileName);
+    if (fileQ.first != errorCode::OK)
+    {
+        return errorCode::PATH_NOT_FOUND;
+    }    
+    auto data = fs.getData(std::get<size_type>(fileQ));
+    out.write(data.first.get(),data.second) << std::endl;
     return errorCode::OK;
 }
 
@@ -307,6 +315,18 @@ bool procesLine(fileSystem& fs, std::ostream& out, std::string line)
         out << code << std::endl;
         return true;
     }
+
+    if(token.compare("cat") == 0)
+    {
+        stream >> arg1;
+        auto ret = cat(fs,out,arg1);
+        if(ret != errorCode::OK)
+        {
+            out << ret << std::endl;
+        }
+        return true;
+    }
+
     if (token.compare("mkdir") == 0)
     {
         stream >> arg1;
