@@ -15,7 +15,7 @@ public:
 
     inline dirItem()
     {
-        memset(this->name, '\0', fileLiteralLenght);
+        memset(name, '\0', fileLiteralLenght);
         inode_id = 0;
     };
     inline dirItem(const char name[fileLiteralLenght], size_type id) :inode_id(id)

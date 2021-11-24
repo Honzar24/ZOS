@@ -157,10 +157,10 @@ errorCode incp(fileSystem& fs, std::string& fileName, std::string& VFile)
     file.seekg(0, std::ios::end);
     size_t fileSize = file.tellg();
     file.seekg(std::ios::beg);
-    char* data = new char[fileSize + 1];
-    std::memset(data, 'f', fileSize);
+    std::unique_ptr<char[]> data(new char[fileSize + 1]);
+    std::memset(data.get(), 'f', fileSize);
     data[fileSize] = '\0';
-    file.read(data, fileSize);
+    file.read(data.get(), fileSize);
     size_type dirID;
     auto pathAndName = stripName(VFile);
     auto pathQ = pathToInode(fs, curentDir, pathAndName.first);
@@ -169,8 +169,7 @@ errorCode incp(fileSystem& fs, std::string& fileName, std::string& VFile)
         return errorCode::PATH_NOT_FOUND;
     }
     dirID = std::get<size_type>(pathQ);
-    auto ret = fs.touch(dirID, pathAndName.second.c_str(), data, fileSize);
-    delete[] data;
+    auto ret = fs.touch(dirID, pathAndName.second.c_str(), data.get(), fileSize);
     return ret.first;
 }
 /**

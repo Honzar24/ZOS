@@ -14,23 +14,18 @@
 *   Takto je mozno v logu primo videt z jake funkce je makro volano to to nevim jak by slo docilit pomoci funkce
 */
 
-#define SEEKG(pos)\
-    assert((!fileStream.fail()) && "preSEEKG");fileStream.seekg(pos);assert((!fileStream.fail()) && "posSEEKG")
+#define SEEKG(pos) assert((!fileStream.fail()) && "preSEEKG");fileStream.seekg(pos);assert((!fileStream.fail()) && "posSEEKG")
 
-#define SEEKP(pos)\
-    assert((!fileStream.fail()) && "preSEEKG");fileStream.seekp(pos);assert((!fileStream.fail()) && "posSEEKP")
+#define SEEKP(pos) assert((!fileStream.fail()) && "preSEEKG");fileStream.seekp(pos);assert((!fileStream.fail()) && "posSEEKP")
 
-#define WRITE(data,sizeBytes)\
-    assert((!fileStream.fail()) && "preWRITE");TRACE("Write to  address:" << STREAMADDRESS(fileStream.tellp()) << " size " << sizeBytes);fileStream.write(data, sizeBytes);assert((!fileStream.fail())&& "posWRITE")
+#define WRITE(data,sizeBytes) assert((!fileStream.fail()) && "preWRITE");TRACE("Write to  address:" << STREAMADDRESS(fileStream.tellp()) << " size " << sizeBytes);fileStream.write(data, sizeBytes);assert((!fileStream.fail())&& "posWRITE")
 
-#define AWRITE(address,data,sizeBytes)\
-    assert((!fileStream.fail()) && "preAWRITE");SEEKP(address);WRITE(data,sizeBytes)
+#define AWRITE(address,data,sizeBytes) assert((!fileStream.fail()) && "preAWRITE");SEEKP(address);\
+WRITE(data,sizeBytes)
 
-#define READ(data,sizeBytes)\
-    fileStream.flush(); assert((!fileStream.fail()) && "preREAD");TRACE("Read from address:" << STREAMADDRESS(fileStream.tellg()) << " size " << sizeBytes);fileStream.read(data, sizeBytes);assert((!fileStream.fail()) && "posREAD")
+#define READ(data,sizeBytes) fileStream.flush(); assert((!fileStream.fail()) && "preREAD");TRACE("Read from address:" << STREAMADDRESS(fileStream.tellg()) << " size " << sizeBytes);fileStream.read(data, sizeBytes);assert((!fileStream.fail()) && "posREAD")
 
-#define AREAD(address,data,sizeBytes)\
-    assert((!fileStream.fail()) && "preAREAD");SEEKG(address);READ(data,sizeBytes);
+#define AREAD(address,data,sizeBytes) assert((!fileStream.fail()) && "preAREAD");SEEKG(address);READ(data,sizeBytes);
 
 /*
 *   Konec sekce smrti
@@ -66,20 +61,20 @@ void fileSystem::createRoot()
     DEBUG("Creating root");
     auto root = alocateNewInode();
     root.type = inode::dir;
-    dirItem dirItems[2];
-    dirItems[0] = dirItem(".", root.id);
-    dirItems[1] = dirItem("..", root.id);
+    dirItem self = dirItem(".", root.id);
+    dirItem parent = dirItem("..", root.id);
     root.fileSize += 2 * sizeof(dirItem);
     addPointer(root, alocateDataBlock());
-    AWRITE(sb.inodeAddress() + root.id * sizeof(inode), reinterpret_cast<char*>(&root), sizeof(root));
-    AWRITE(root.pointers.direct[0], reinterpret_cast<char*>(dirItems), sizeof(dirItems));
+    AWRITE(sb.inodeAddress() + root.id * sizeof(inode), reinterpret_cast<char*>(&root), sizeof(inode));
+    AWRITE(root.pointers.direct[0], reinterpret_cast<char*>(&self), sizeof(dirItem));
+    AWRITE(root.pointers.direct[0], reinterpret_cast<char*>(&parent), sizeof(dirItem));    
 }
 bool fileSystem::addToIndirect(pointer_type pointer)
 {
     size_t pointerCount = sb.blockSize / sizeof(pointer_type);
-    pointer_type* pointerBlock = new pointer_type[pointerCount];
+    std::unique_ptr<pointer_type[]>pointerBlock(new pointer_type[pointerCount]);
     size_t basePointer = fileStream.tellg();
-    READ(reinterpret_cast<char*>(pointerBlock), pointerCount * sizeof(pointer_type));
+    READ(reinterpret_cast<char*>(pointerBlock.get()), pointerCount * sizeof(pointer_type));
     for (size_t i = 0; i < pointerCount; i++)
     {
         if (pointerBlock[i] == 0)
@@ -87,11 +82,9 @@ bool fileSystem::addToIndirect(pointer_type pointer)
             auto data = reinterpret_cast<char*>(&pointer);
             DEBUG("pointer to " << STREAMADDRESS(pointer) << " as " << i << " pointer ");
             AWRITE(basePointer + i * sizeof(pointer_type), data, sizeof(pointer_type));
-            delete[] pointerBlock;
             return true;
         }
     }
-    delete[] pointerBlock;
     return false;
 }
 
@@ -123,14 +116,14 @@ void fileSystem::addPointer(inode& inode, pointer_type pointer)
         }
     }
     size_t pointerCount = sb.blockSize / sizeof(pointer_type);
-    pointer_type* pointerBlock = new pointer_type[pointerCount];
+    std::unique_ptr<pointer_type[]>pointerBlock(new pointer_type[pointerCount]);
     for (size_t i = 0; i < indirect2PointersCount; i++)
     {
         if (inode.pointers.indirect2[i] == 0)
         {
             inode.pointers.indirect2[i] = alocateDataBlock();
         }
-        AREAD(inode.pointers.indirect2[i], reinterpret_cast<char*>(pointerBlock), pointerCount * sizeof(pointer_type));
+        AREAD(inode.pointers.indirect2[i], reinterpret_cast<char*>(pointerBlock.get()), pointerCount * sizeof(pointer_type));
         for (size_t j = 0; j < pointerCount; j++)
         {
             if (pointerBlock[j] == 0)
@@ -142,12 +135,10 @@ void fileSystem::addPointer(inode& inode, pointer_type pointer)
             if (addToIndirect(pointer))
             {
                 DEBUG("in indirect2 " << j);
-                delete[] pointerBlock;
                 return;
             }
         }
     }
-    delete[] pointerBlock;
     ERROR("Inode address pool overflow");
     assert(false);
 }
@@ -155,19 +146,20 @@ bool fileSystem::addDirItem(inode& node, dirItem& item)
 {
     std::vector<pointer_type>data = getDataPointers(node);
     size_t dirItemCount = sb.blockSize / sizeof(dirItem);
+    std::unique_ptr<dirItem[]>current(new dirItem[dirItemCount]);
     for (auto dataBlock : data)
     {
         SEEKG(dataBlock);
-        dirItem* curent = new dirItem[dirItemCount];
-        READ(reinterpret_cast<char*>(curent), dirItemCount * sizeof(dirItem));
+
+        READ(reinterpret_cast<char*>(current.get()), dirItemCount * sizeof(dirItem));
         for (size_t i = 0; i < dirItemCount; i++)
         {
-            if (std::strncmp(curent[i].name, item.name, fileLiteralLenght) == 0)
+            if (std::strncmp(current[i].name, item.name, fileLiteralLenght) == 0)
             {
                 return false;
             }
         }
-        delete[] curent;
+
     }
     pointer_type pointer;
     size_t freeSpace = data.size() * sb.blockSize - node.fileSize;
@@ -230,15 +222,15 @@ std::pair<std::unique_ptr<char[]>, size_t> fileSystem::getData(size_type file)
         return std::make_pair(nullptr, 0);
     }
     size_t fileSize = inode.fileSize;
-    auto data = new char[fileSize];
-    char* cdata = data;
+    std::unique_ptr<char[]>data(new char[fileSize]);
+    char* cdata = data.get();
     auto pointers = getDataPointers(inode);
     for (size_t i = 0; i < pointers.size() - 1; i++, cdata += sb.blockSize, fileSize -= sb.blockSize)
     {
         AREAD(pointers[i], cdata, sb.blockSize);
     }
     AREAD(pointers[pointers.size() - 1], cdata, fileSize);
-    return std::make_pair(std::unique_ptr<char[]>(data), inode.fileSize);
+    return std::make_pair(std::move(data), inode.fileSize);
 }
 
 std::pair<errorCode, size_type> fileSystem::touch(size_type dirID, const char fileName[maxFileNameLenght], const char data[], const size_t fileSize)
@@ -282,15 +274,14 @@ std::pair<errorCode, inode> fileSystem::create(inode& dir, std::string& fileName
         freeInode(file);
         return std::make_pair(errorCode::CAN_NOT_CREATE_FILE, std::move(file));
     }
+    std::unique_ptr<char[]>current(new char[sb.blockSize]);
     for (size_t i = 0; i < blockCount; i++)
     {
-        char* current = new char[sb.blockSize];
-        std::memset(current, '\0', sb.blockSize);
-        std::memcpy(current, data, sb.blockSize);
-        AWRITE(dataP[i], current, sb.blockSize);
+        std::memset(current.get(), '\0', sb.blockSize);
+        std::memcpy(current.get(), data, sb.blockSize);
+        AWRITE(dataP.at(i), current.get(), sb.blockSize);
         data += sb.blockSize;
-        addPointer(file, dataP[i]);
-        delete[] current;
+        addPointer(file, dataP.at(i));
     }
     AWRITE(sb.inodeAddress() + file.id * sizeof(inode), reinterpret_cast<char*>(&file), sizeof(inode));
     return std::make_pair(errorCode::OK, std::move(file));
@@ -414,13 +405,12 @@ errorCode fileSystem::cp(inode& src, inode& dest)
         return errorCode::CAN_NOT_CREATE_FILE;
     }
     assert(dest.fileSize == 0);
+    std::unique_ptr<char[]>current(new char[sb.blockSize]);
     for (size_t i = 0; i < data.size(); i++)
     {
-        char* current = new char[sb.blockSize];
-        AREAD(data[i], current, sb.blockSize);
-        AWRITE(nData[i], current, sb.blockSize);
+        AREAD(data[i], current.get(), sb.blockSize);
+        AWRITE(nData[i], current.get(), sb.blockSize);
         addPointer(dest, nData[i]);
-        delete[] current;
     }
     dest.fileSize = src.fileSize;
     dest.type = src.type;
@@ -492,13 +482,13 @@ error_string_pair fileSystem::ls(size_type inodeID)
     }
     std::stringstream out;
     std::vector<dirItemP> dirs = getDirItems(dir);
-    for (auto curent : dirs)
+    for (auto current : dirs)
     {
-        if (!std::strncmp(std::get<dirItem>(curent).name, "", fileLiteralLenght) == 0)
+        if (!std::strncmp(std::get<dirItem>(current).name, "", fileLiteralLenght) == 0)
         {
-            inode curentInode;
-            AREAD(sb.inodeAddress() + std::get<dirItem>(curent).inode_id * sizeof(inode), reinterpret_cast<char*>(&curentInode), sizeof(inode));
-            switch (curentInode.type)
+            inode currentInode;
+            AREAD(sb.inodeAddress() + std::get<dirItem>(current).inode_id * sizeof(inode), reinterpret_cast<char*>(&currentInode), sizeof(inode));
+            switch (currentInode.type)
             {
             case inode::inode_types::dir:
                 out << '+';
@@ -511,23 +501,23 @@ error_string_pair fileSystem::ls(size_type inodeID)
                 out << '?';
                 break;
             }
-            out << std::get<dirItem>(curent).name << std::endl;
+            out << std::get<dirItem>(current).name << std::endl;
         }
     }
     return std::make_pair(fileSystem::errorCode::OK, out.str());
 }
-void printPointers(std::ostream& out,pointer_type* pointers,size_t size,const char* text)
+void printPointers(std::ostream& out, pointer_type* pointers, size_t size, const char* text)
 {
-    if(size < 1 || pointers[0] == 0)
+    if (size < 1 || pointers[0] == 0)
     {
         return;
     }
-    out.write(text,std::strlen(text));
+    out.write(text, std::strlen(text));
     out << "[";
     out << STREAMADDRESS(pointers[0]);
     for (size_t i = 1; i < size; i++)
     {
-        if(pointers[i] != 0)
+        if (pointers[i] != 0)
             out << "," << STREAMADDRESS(pointers[i]);
     }
     out << "]";
@@ -574,9 +564,9 @@ error_string_pair fileSystem::info(size_type parentID, c_file_name_t name)
     out << name << " - ";
     out << inode.fileSize << " - ";
     out << inode.id << " - ";
-    printPointers(out , inode.pointers.direct,directPointersCount,"direct");
-    printPointers(out , inode.pointers.indirect1,indirect1PointersCount,"indirect 1");
-    printPointers(out , inode.pointers.indirect2,indirect2PointersCount,"indirect 2");    
+    printPointers(out, inode.pointers.direct, directPointersCount, "direct");
+    printPointers(out, inode.pointers.indirect1, indirect1PointersCount, "indirect 1");
+    printPointers(out, inode.pointers.indirect2, indirect2PointersCount, "indirect 2");
     return std::make_pair(errorCode::OK, out.str());
 }
 
@@ -702,7 +692,7 @@ std::vector<pointer_type> fileSystem::getDataPointers(inode& inode)
 
     }
     size_t pointerCount = sb.blockSize / sizeof(pointer_type);
-    pointer_type* dataPointres = new pointer_type[pointerCount];
+    std::unique_ptr<pointer_type[]>dataPointres(new pointer_type[pointerCount]);
     for (size_t i = 0; i < indirect1PointersCount; i++)
     {
         if (inode.pointers.indirect1[i] == 0)
@@ -710,7 +700,7 @@ std::vector<pointer_type> fileSystem::getDataPointers(inode& inode)
             return pointers;
         }
 
-        AREAD(inode.pointers.indirect1[i], reinterpret_cast<char*>(dataPointres), pointerCount * sizeof(pointer_type));
+        AREAD(inode.pointers.indirect1[i], reinterpret_cast<char*>(dataPointres.get()), pointerCount * sizeof(pointer_type));
         for (size_t j = 0; j < pointerCount; j++)
         {
             if (dataPointres[j] != 0)
@@ -719,19 +709,20 @@ std::vector<pointer_type> fileSystem::getDataPointers(inode& inode)
             }
         }
     }
-    pointer_type* dataPointersPointres = new pointer_type[pointerCount];
+    std::unique_ptr<pointer_type[]>dataPointersPointres(new pointer_type[pointerCount]);
     for (size_t i = 0; i < indirect2PointersCount; i++)
     {
         if (inode.pointers.indirect2[i] == 0)
         {
+
             return pointers;
         }
-        AREAD(inode.pointers.indirect2[i], reinterpret_cast<char*>(dataPointersPointres), pointerCount * sizeof(pointer_type));
+        AREAD(inode.pointers.indirect2[i], reinterpret_cast<char*>(dataPointersPointres.get()), pointerCount * sizeof(pointer_type));
         for (size_t j = 0; j < pointerCount; j++)
         {
             if (dataPointersPointres[j] == 0)
                 continue;
-            AREAD(dataPointersPointres[j], reinterpret_cast<char*>(dataPointres), pointerCount * sizeof(pointer_type));
+            AREAD(dataPointersPointres[j], reinterpret_cast<char*>(dataPointres.get()), pointerCount * sizeof(pointer_type));
             for (size_t k = 0; k < pointerCount; k++)
             {
                 if (dataPointres[k] == 0)
@@ -741,8 +732,6 @@ std::vector<pointer_type> fileSystem::getDataPointers(inode& inode)
             }
         }
     }
-    delete[] dataPointersPointres;
-    delete[] dataPointres;
     FATAL("File is bigger than inode can address");
     assert(false);
     return pointers;
@@ -759,17 +748,16 @@ std::vector<dirItemP> fileSystem::getDirItems(inode& inode)
     size_t dirItemCount = sb.blockSize / sizeof(dirItem);
     for (auto dataBlock : data)
     {
-        dirItem* curent = new dirItem[dirItemCount];
-        AREAD(dataBlock, reinterpret_cast<char*>(curent), dirItemCount * sizeof(dirItem));
+        std::unique_ptr<dirItem[]>current(new dirItem[dirItemCount]);
+        AREAD(dataBlock, reinterpret_cast<char*>(current.get()), dirItemCount * sizeof(dirItem));
         for (size_t i = 0; i < dirItemCount; i++)
         {
-            if (std::strcmp(curent[i].name, "") != 0)
+            if (std::strcmp(current[i].name, "") != 0)
             {
-                auto pair = std::make_pair(curent[i], dataBlock + i * sizeof(dirItem));
+                auto pair = std::make_pair(current[i], dataBlock + i * sizeof(dirItem));
                 dirItems.push_back(pair);
             }
         }
-        delete[] curent;
     }
     return dirItems;
 }
@@ -850,10 +838,9 @@ pointer_type fileSystem::alocateDataBlock()
     pointer_type pointer = sb.dataAddress() + index * sb.blockSize;
     DEBUG("Alocating Data block " << index << " on address:" << STREAMADDRESS(pointer));
     DEBUG("Zeroing Data Block " << index);
-    char* zero = new char[sb.blockSize];
-    std::memset(zero, '\0', sb.blockSize);
-    AWRITE(pointer, zero, sb.blockSize);
-    delete[] zero;
+    std::unique_ptr<char[]>zero(new char[sb.blockSize]);
+    std::memset(zero.get(), '\0', sb.blockSize);
+    AWRITE(pointer, zero.get(), sb.blockSize);
     return pointer;
 }
 
@@ -870,16 +857,15 @@ void fileSystem::freeDataBlock(pointer_type dataPointer)
     }
     DEBUG("Free data block on " << STREAMADDRESS(dataPointer));
     it.flip(fileStream);
-    char* empty = new char[sb.blockSize];
+    std::unique_ptr<char[]>empty(new char[sb.blockSize]);
 #ifndef NDEBUG
-    std::memset(empty, 'f', sb.blockSize);
+    std::memset(empty.get(), 'f', sb.blockSize);
     empty[0] = '<';
     empty[sizeof(empty) - 1] = '>';
 #else
-    std::memset(empty, '\0', sb.blockSize);
+    std::memset(empty.get(), '\0', sb.blockSize);
 #endif
-    AWRITE(dataPointer, empty, sb.blockSize);
-    delete[] empty;
+    AWRITE(dataPointer, empty.get(), sb.blockSize);
 }
 
 std::vector<pointer_type> fileSystem::alocateDataBlocks(size_t numberOfDataBlocks)
@@ -936,7 +922,7 @@ errorCode fileSystem::calcAndFormat(size_type size)
 errorCode fileSystem::format()
 {
     fileStream.close();
-    fileStream.open(fileName, std::ios::out | std::ios::in | std::ios::binary | std::ios::trunc);
+    fileStream.open(getName(), std::ios::out | std::ios::in | std::ios::binary | std::ios::trunc);
     if (!fileStream.is_open())
     {
         FATAL("File " << fileName << " can not be create by program. " << strerror(errno));
@@ -968,15 +954,14 @@ errorCode fileSystem::format()
     DEBUG("Writing placeholder of data blocks");
     SEEKP(sb.dataAddress());
     const size_t bsize = sb.blockSize;
-    char* placeholderd = new char[bsize];
-    std::memset(placeholderd, 'd', bsize);
+    std::unique_ptr<char[]>placeholderd(new char[bsize]);
+    std::memset(placeholderd.get(), 'd', bsize);
     placeholderd[0] = '<';
     placeholderd[bsize - 1] = '>';
     for (size_t i = 0; i < sb.blockCount; i++)
     {
-        WRITE(placeholderd, bsize);
+        WRITE(placeholderd.get(), bsize);
     }
-    delete[] placeholderd;
 #else
     fileStream.seekp(sb.dataAddress() + sb.blockCount * sb.blockSize);
     fileStream.write("", 1);

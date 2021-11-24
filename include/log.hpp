@@ -28,6 +28,7 @@ inline std::string getLogLevelLiteral(LOG_LEVEL level)
         return "ULOG";
     }
 }
+#define STREAMADDRESS(address) "0x" << std::setw(16) << std::left << std::hex << address << std::dec
 
 #ifndef NLOG
 #define __FILENAME__ (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
@@ -35,7 +36,6 @@ inline std::string getLogLevelLiteral(LOG_LEVEL level)
 #define MAXlevelLenght 6
 #define MAXlineLenght 5
 
-#define STREAMADDRESS(address) "0x" << std::setw(16) << std::left << std::hex << address << std::dec
 
 extern std::fstream LOGSTREAM;
 
