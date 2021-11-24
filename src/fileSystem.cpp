@@ -36,12 +36,14 @@ using dirItemP = std::pair<dirItem, pointer_type>;
 
 fileSystem::fileSystem(std::string& fileName, superBlock& sb) : fileName(fileName), fileStream(fileName), sb(sb)
 {
-    if (sb.inodeAddress() != 0)
+    if (sb.inodeAddress() == 0)
     {
-        format();
-    } else
-    {
-        calcAndFormat(sb.diskSize);
+        errorCode code = calc(sb.diskSize);
+        if (code != errorCode::OK)
+        {
+            std::cout << code << std::endl;
+            exit(1);
+        }
     }
 }
 fileSystem::fileSystem(std::string& fileName) : fileName(fileName), fileStream(fileName, std::ios::out | std::ios::in | std::ios::binary)
@@ -61,7 +63,7 @@ bool fileSystem::isFormated()
     if (!fileStream.is_open())
         return false;
     if (sb.blockCount == 0)
-        return false; 
+        return false;
     return true;
 }
 
@@ -70,13 +72,13 @@ void fileSystem::createRoot()
     DEBUG("Creating root");
     auto root = alocateNewInode();
     root.type = inode::dir;
-    dirItem self = dirItem(".", root.id);
-    dirItem parent = dirItem("..", root.id);
+    dirItem dirItems[2];
+    dirItems[0] = dirItem(".", root.id);
+    dirItems[1] = dirItem("..", root.id);
     root.fileSize += 2 * sizeof(dirItem);
     addPointer(root, alocateDataBlock());
     AWRITE(sb.inodeAddress() + root.id * sizeof(inode), reinterpret_cast<char*>(&root), sizeof(inode));
-    AWRITE(root.pointers.direct[0], reinterpret_cast<char*>(&self), sizeof(dirItem));
-    AWRITE(root.pointers.direct[0], reinterpret_cast<char*>(&parent), sizeof(dirItem));    
+    AWRITE(root.pointers.direct[0], reinterpret_cast<char*>(&dirItems), 2 * sizeof(dirItem));
 }
 bool fileSystem::addToIndirect(pointer_type pointer)
 {
@@ -338,13 +340,13 @@ errorCode fileSystem::cp(size_type parentID, c_file_name_t srcItemName, size_typ
 errorCode fileSystem::mv(size_type parentID, c_file_name_t srcItemName, size_type destInodeID, c_file_name_t destName)
 {
     inode src, parent, destParent;
+    dirItem srcItem, destItem;
     AREAD(sb.inodeAddress() + parentID * sizeof(inode), reinterpret_cast<char*>(&parent), sizeof(inode));
     if (parent.type != inode::inode_types::dir)
     {
         DEBUG("mv parent directory is not found");
         return errorCode::PATH_NOT_FOUND;
     }
-    dirItem srcItem, destItem;
     for (dirItemP dirItemPair : getValidDirItems(parent))
     {
         srcItem = std::get<dirItem>(dirItemPair);
@@ -365,19 +367,20 @@ errorCode fileSystem::mv(size_type parentID, c_file_name_t srcItemName, size_typ
         DEBUG("mv parent dir is not found");
         return errorCode::PATH_NOT_FOUND;
     }
-    std::string destname(destName);
-    auto destRet = create(destParent, destname, "", 0);
-    if (std::get<errorCode>(destRet) != errorCode::OK)
+    DEBUG("Moving file " << srcItem.name);
+    std::memcpy(&destItem, &srcItem, sizeof(dirItem));
+    std::strcpy(destItem.name, destName);
+    if (!addDirItem(destParent, destItem))
     {
-        return std::get<errorCode>(destRet);
+        DEBUG("mv parent can not add this file name is alredy in use");
+        return errorCode::EXIST;
     }
-#ifndef NLOG
-    if (src.numHardLinks > 0)
+    if (!removeDirItem(parent, srcItem))
     {
-        INFO("mv moving hard pointed inode making all hard link invalid");
+        DEBUG("mv parent can not remove the src");
+        return errorCode::FILE_NOT_FOUND;
     }
-#endif
-    return mv(parent, src, srcItem, std::get<inode>(destRet));
+    return errorCode::OK;
 }
 
 errorCode fileSystem::rm(size_type parentID, c_file_name_t itemName)
@@ -424,23 +427,6 @@ errorCode fileSystem::cp(inode& src, inode& dest)
     dest.fileSize = src.fileSize;
     dest.type = src.type;
     AWRITE(sb.inodeAddress() + dest.id * sizeof(inode), reinterpret_cast<char*>(&dest), sizeof(inode));
-    return errorCode::OK;
-}
-
-errorCode fileSystem::mv(inode& parent, inode& src, dirItem& srcItem, inode& dest)
-{
-    DEBUG("Moving file(" << srcItem.name << ") inode(" << srcItem.inode_id << ") to file inode(" << dest.id << ")");
-    if (!removeDirItem(parent, srcItem))
-    {
-        DEBUG("mv parent can not remove the src");
-        return errorCode::FILE_NOT_FOUND;
-    }
-    auto data = getDataPointers(src);
-    dest.pointers = src.pointers;
-    dest.fileSize = src.fileSize;
-    dest.numHardLinks = 0;
-    AWRITE(sb.inodeAddress() + dest.id * sizeof(inode), reinterpret_cast<char*>(&dest), sizeof(inode));
-    freeInode(src);
     return errorCode::OK;
 }
 
@@ -908,7 +894,7 @@ std::vector<pointer_type> fileSystem::alocateDataBlocks(size_t numberOfDataBlock
     return pointers;
 }
 
-errorCode fileSystem::calcAndFormat(size_type size)
+errorCode fileSystem::calc(size_type size)
 {
     sb.diskSize = size;
     // +2 protoze maximalne si pucim 2 Byty pro bitArray
@@ -925,7 +911,7 @@ errorCode fileSystem::calcAndFormat(size_type size)
         FATAL("Can not setup pointers for superblock configuration");
         return errorCode::CAN_NOT_CREATE_SUPERBLOCK;
     }
-    return format();
+    return errorCode::OK;
 }
 
 errorCode fileSystem::format()

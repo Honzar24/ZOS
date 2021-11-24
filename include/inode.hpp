@@ -35,6 +35,11 @@ public:
 public:
     inline inode(size_type id, inode_types type, size_type fileSize) :id(id), type(type), fileSize(fileSize), numHardLinks(0)
     {
+        std::memset(this,'\0',sizeof(inode));
+        this->id = id;
+        this->type = type;
+        this->fileSize = fileSize;
+        this->numHardLinks = 0;
         std::memset(&pointers, '\0', sizeof(inode_poiters));
     }
     inline inode(size_type id) : inode(id, nodef, 0) {};

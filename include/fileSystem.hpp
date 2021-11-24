@@ -35,8 +35,6 @@
  * TODO: co delat pokud dosli data bloky?
  * TODO: co delat pokud dana inoda jiz nemuze na addresovat dalsi block?
  * TODO: vypis self a parent odkazu v ls?
- * TODO: mrdir /?
- * TODO: mazat automaticky neplatne hardlinky?
  *
  *
  * : memory regen pri odstraneni posledni polozky v bloku
@@ -179,7 +177,7 @@ private:
      * @return true vse vporadku system byl naformatovan
      * @return false takovy file system nelze setrojit nebo zapsat
      */
-    errorCode calcAndFormat(size_type size);
+    errorCode calc(size_type size);
 
     /**
      * @brief kopiruje src do dest
