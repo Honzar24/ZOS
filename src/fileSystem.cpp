@@ -56,6 +56,15 @@ fileSystem::fileSystem(std::string& fileName) : fileName(fileName), fileStream(f
     dataBlockBitArray = fileBitArray(sb.bitArrayDataBlockAddress(), sb.blockCount);
 }
 
+bool fileSystem::isFormated()
+{
+    if (!fileStream.is_open())
+        return false;
+    if (sb.blockCount == 0)
+        return false; 
+    return true;
+}
+
 void fileSystem::createRoot()
 {
     DEBUG("Creating root");

@@ -77,7 +77,7 @@ public:
 private:
     std::string fileName;
     std::fstream fileStream;
-    superBlock sb;
+    superBlock sb = {0};
     fileBitArray inodeBitArray;
     fileBitArray dataBlockBitArray;
     /**
@@ -222,6 +222,8 @@ private:
     std::pair<errorCode, inode> create(inode& dir, std::string& fileName, const char* data, const size_t fileSize);
 
 public:
+
+    bool isFormated();
 
     std::string getName()
     {

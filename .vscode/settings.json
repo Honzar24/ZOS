@@ -81,7 +81,7 @@
     },
     "cmake.debugConfig": {
         "args": [
-            "soubor"
+            "vfs.fs"
         ]
     },
     "C_Cpp.intelliSenseEngineFallback": "Enabled"

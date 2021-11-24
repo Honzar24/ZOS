@@ -212,6 +212,7 @@ errorCode load(fileSystem& fs, std::ostream& out, std::string fileName)
     {
         return errorCode::FILE_NOT_FOUND;
     }
+    out << "Loading comands form:" << fileName << std::endl;
     std::string fline;
     for (size_t index = 0;std::getline(file, fline); index++)
     {
@@ -232,6 +233,48 @@ bool procesLine(fileSystem& fs, std::ostream& out, std::string line)
     stream << line;
     std::string token, arg1, arg2;
     stream >> token;
+
+    if (token.compare("format") == 0)
+    {
+        stream >> arg1;
+        int diskSize, pos = arg1.rfind("MB");
+        if (pos != std::string::npos)
+        {
+            diskSize = std::atoi(arg1.substr(0, pos).c_str());
+            diskSize *= 1024 * 1024;
+        } else {
+            diskSize = std::atoi(arg1.c_str());
+        }
+        superBlock sb(diskSize);
+        std::string fileName = fs.getName();
+        fs = fileSystem(fileName, sb);
+        auto ret = fs.format();
+        out << ret << std::endl;
+        if (ret == errorCode::OK)
+        {
+            curentDir = 0;
+        }
+        return true;
+    }
+
+    if (token.compare("load") == 0)
+    {
+        stream >> arg1;
+        auto ret = load(fs, out, arg1);
+        out << ret << std::endl;
+        return true;
+    }
+
+    if (token.compare("exit") == 0)
+    {
+        return false;
+    }
+
+    if (!fs.isFormated())
+    {
+        out << "File system is no formated pls format it before running any commands!" << std::endl;
+        return true;
+    }
     if (token.compare("ls") == 0)
     {
         stream >> arg1;
@@ -402,40 +445,6 @@ bool procesLine(fileSystem& fs, std::ostream& out, std::string line)
         stream >> arg2;
         out << outcp(fs, arg1, arg2) << std::endl;
         return true;
-    }
-    if (token.compare("load") == 0)
-    {
-        stream >> arg1;
-        out << "Loading comands form:" << arg1 << std::endl;
-        auto ret = load(fs, out, arg1);
-        out << ret << std::endl;
-        return true;
-    }
-    if (token.compare("format") == 0)
-    {
-        stream >> arg1;
-        int diskSize, pos = arg1.rfind("MB");
-        if (pos != std::string::npos)
-        {
-            diskSize = std::atoi(arg1.substr(0, pos).c_str());
-            diskSize *= 1024 * 1024;
-        } else {
-            diskSize = std::atoi(arg1.c_str());
-        }
-        superBlock sb(diskSize);
-        std::string fileName = fs.getName();
-        fs = fileSystem(fileName, sb);
-        auto ret = fs.format();
-        out << ret << std::endl;
-        if (ret == errorCode::OK)
-        {
-            curentDir = 0;
-        }
-        return true;
-    }
-    if (token.compare("exit") == 0)
-    {
-        return false;
     }
     out << "Unknow command:" << token << std::endl;
     return true;
