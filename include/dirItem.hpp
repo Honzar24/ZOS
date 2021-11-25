@@ -15,12 +15,13 @@ public:
 
     inline dirItem()
     {
-        memset(name, '\0', fileLiteralLenght);
+        std::memset(this, '\0', sizeof(dirItem));
         inode_id = 0;
     };
-    inline dirItem(const char name[fileLiteralLenght], size_type id) :inode_id(id)
+    inline dirItem(const char name[fileLiteralLenght], size_type id)
     {
-        memset(this->name, '\0', fileLiteralLenght);
-        strncpy(this->name, name, fileLiteralLenght - 1);
+        std::memset(this, '\0', sizeof(dirItem));
+        inode_id = id;
+        std::strncpy(this->name, name, fileLiteralLenght - 1);
     }
 };

@@ -286,12 +286,14 @@ std::pair<errorCode, inode> fileSystem::create(inode& dir, std::string& fileName
         return std::make_pair(errorCode::CAN_NOT_CREATE_FILE, std::move(file));
     }
     std::unique_ptr<char[]>current(new char[sb.blockSize]);
+    size_t wSize = file.fileSize;
     for (size_t i = 0; i < blockCount; i++)
     {
         std::memset(current.get(), '\0', sb.blockSize);
-        std::memcpy(current.get(), data, sb.blockSize);
+        std::memcpy(current.get(), data, std::min(wSize,sb.blockSize));
         AWRITE(dataP.at(i), current.get(), sb.blockSize);
         data += sb.blockSize;
+        wSize -= sb.blockSize;
         addPointer(file, dataP.at(i));
     }
     AWRITE(sb.inodeAddress() + file.id * sizeof(inode), reinterpret_cast<char*>(&file), sizeof(inode));
