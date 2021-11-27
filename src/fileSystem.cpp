@@ -286,7 +286,7 @@ std::pair<errorCode, inode> fileSystem::create(inode& dir, std::string& fileName
         return std::make_pair(errorCode::CAN_NOT_CREATE_FILE, std::move(file));
     }
     std::unique_ptr<char[]>current(new char[sb.blockSize]);
-    size_t wSize = file.fileSize;
+    size_type wSize = file.fileSize;
     for (size_t i = 0; i < blockCount; i++)
     {
         std::memset(current.get(), '\0', sb.blockSize);
