@@ -1,0 +1,106 @@
+\documentclass[12pt, a4paper]{report}
+\usepackage[utf8]{inputenc}
+\usepackage[IL2]{fontenc}
+\usepackage[czech]{babel}
+\usepackage[hidelinks]{hyperref}
+\RequirePackage[a4paper,left=37mm,right=37mm,top=33mm,bottom=40mm]{geometry}
+
+\usepackage{graphicx}
+\graphicspath{ {./images/} }
+
+
+
+
+\begin{document}
+
+
+\begin{titlepage}
+\includegraphics{logo}
+\enlargethispage{25mm}
+\addtolength{\topmargin}{-8mm}
+\thispagestyle{empty}
+\vspace*{\fill}
+\begin{center}
+      {\Huge \bf {Semestrání práce}}\\[0.2cm]
+      { z předmětu ZOS}\\[0.1cm]
+      {\large \bf Virtuální souborový systém}\\[0.5cm]
+      
+      {\Large Jan Rádl}\\[0.4cm]
+\end{center}
+\vspace*{\fill}
+\begin{flushright}
+\vfill
+\today
+\end{flushright}
+\end{titlepage}
+
+\tableofcontents
+
+
+
+
+\chapter{Zadání}
+\section{Téma}
+Tématem semestrální práce bude práce se zjednodušeným souborovým systémem založeným na
+i-uzlech. Vaším cílem bude splnit několik vybraných úloh.
+Základní funkčnost, kterou musí program splňovat. Formát výpisů je závazný.
+Program bude mít jeden parametr a tím bude název Vašeho souborového systému. Po spuštění bude
+program čekat na zadání jednotlivých příkazů s minimální funkčností viz níže (všechny soubory
+mohou být zadány jak absolutní, tak relativní cestou)
+\begin{itemize}
+\item Maximální délka názvu souboru bude 8+3=11 znaků (jméno.přípona) + {\textbackslash}0 (ukončovací znak v (C/C++), tedy 12 bytů.
+ \item Každý název bude zabírat právě 12 bytů (do délky 12 bytů doplníte \textbackslash0 - při kratších názvech)
+\end{itemize}
+\section{Příkazy}
+\begin{enumerate}
+ \item cp - kopíruje soubory
+ \item mv - přesouvá soubory
+ \item rm - maže soubory
+ \item ln - vytvoří hard link na soubor
+ \item cat - vypíše obsah souboru jako sekvenci charů
+ 
+ \item mkdir - vytváří adresář
+ \item rmdir - ruší prázný adresář
+ \item ls - vypíše obsah adresáře
+ 
+
+ \item cd - změní aktuální adresář
+ \item pwd - vypíše cestu od root adresáře k aktuálnímu adresáři
+ \item info - vypíše informace do daném i-uzlu
+ 
+ \item incp - nahraje soubor do vfs
+ \item outcp - vytvoří kopii souboru z vfs do domovkého souborového systému
+ \item load - začne vykonávat příkazy ze zadaného souboru
+ \item format - provede zformátování vfs na požadovanou velikost v MB
+\end{enumerate}
+
+
+
+
+
+\chapter{Analýza úlohy}
+\section{I-uzlový souborový systém}
+\subsection{I-uzel}
+Základní jednotka souborového systému obsahující všechny podstatné informace o datech souboru nikoliv však jeho jméno.
+
+
+\chapter{Popis implementace}
+\section{Řešení}
+
+\section{Výsledky}
+
+
+
+\chapter{Uživatelská příručka}
+\section{Překlad a použití}
+
+
+
+\section{Zajímavé příkazy}
+
+
+
+
+\chapter{Závěr}
+
+\end{document}
