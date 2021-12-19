@@ -6,15 +6,15 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 project(
     inodefs
     VERSION 1.0 
-    DESCRIPTION "I-node -ový souborový systém. Vypracováno jako semestralní práce z předmětu KIV/ZOS." 
+    DESCRIPTION "I-node -ovy souborovy system. Vypracovano jako semestralni prace z predmrtu KIV/ZOS." 
     LANGUAGES CXX)
 
-option(LOGFLAG "Logovani funkce fs" ON)
+option(LOGFLAG "Logovani funkce fs(omezení vykonu)" OFF)
 
 if(LOGFLAG)
     message("Logovani zapnuto")
 else()
-    message("Vypinám logovani")
+    message("Vypinam logovani")
     add_compile_definitions(NLOG)
 endif()
 
@@ -28,5 +28,5 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
 endif()
 
 add_subdirectory(src)
-#aplikace terminálu pro ověření funkcionality
+#aplikace terminalu pro overeni funkcionality
 add_subdirectory(app)

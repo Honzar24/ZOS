@@ -29,22 +29,10 @@
  *          block size % sizeof(pointer_type) == 0  => % 8 == 0
  *
  *
- * : je mozne vytvorit soubor mensi nez pozadovana velikost?
- *	asi jo
- * TODO: co delat pri nedostatku inodu?
- * TODO: co delat pokud dosli data bloky?
- * TODO: co delat pokud dana inoda jiz nemuze na addresovat dalsi block?
- * TODO: vypis self a parent odkazu v ls?
- *
- *
  * : memory regen pri odstraneni posledni polozky v bloku
  * 	lokani vramci data bloku
  * : globalni memory regen nad inodem?
  * 	neni potreba
- *
- * optimalizace io / minilalizace runtime mem
- * 	optimalizace na velikost datablocku
- *
  *
  */
 using file_name_t = char[fileLiteralLenght];

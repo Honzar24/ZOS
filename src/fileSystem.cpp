@@ -11,7 +11,8 @@
 /*
 *   Sekce smrti pozor
 *   Ano makra. Proc? Tato konstrukce je vyuzivana k debugu bez pouziti runtime debugeru pouze za pomoci logu programu
-*   Takto je mozno v logu primo videt z jake funkce je makro volano to to nevim jak by slo docilit pomoci funkce
+*   Takto je mozno v logu primo videt z jake funkce je makro volano to to nevim jak by slo docilit pomoci funkce bez sloziteho predavani kontextu
+*   nebo bez nahledu na callstack
 */
 
 #define SEEKG(pos) assert((!fileStream.fail()) && "preSEEKG");fileStream.seekg(pos);assert((!fileStream.fail()) && "posSEEKG")
@@ -102,7 +103,7 @@ bool fileSystem::addToIndirect(pointer_type pointer)
 void fileSystem::addPointer(inode& inode, pointer_type pointer)
 {
     DEBUG("Adding pointer to " << STREAMADDRESS(pointer) << " to inode(" << inode.id << ")");
-    for (size_t i = 0; i < directPointersCount; i++)
+    for (size_t i = inode.id != 0 ? 0 : 1; i < directPointersCount; i++)
     {
         if (inode.pointers.direct[i] == 0)
         {
@@ -290,7 +291,7 @@ std::pair<errorCode, inode> fileSystem::create(inode& dir, std::string& fileName
     for (size_t i = 0; i < blockCount; i++)
     {
         std::memset(current.get(), '\0', sb.blockSize);
-        std::memcpy(current.get(), data, std::min(wSize,sb.blockSize));
+        std::memcpy(current.get(), data, std::min(wSize, sb.blockSize));
         AWRITE(dataP.at(i), current.get(), sb.blockSize);
         data += sb.blockSize;
         wSize -= sb.blockSize;
@@ -379,6 +380,7 @@ errorCode fileSystem::mv(size_type parentID, c_file_name_t srcItemName, size_typ
     }
     if (!removeDirItem(parent, srcItem))
     {
+        removeDirItem(destParent, destItem);
         DEBUG("mv parent can not remove the src");
         return errorCode::FILE_NOT_FOUND;
     }

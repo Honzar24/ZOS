@@ -5,6 +5,17 @@
 \usepackage[hidelinks]{hyperref}
 \RequirePackage[a4paper,left=37mm,right=37mm,top=33mm,bottom=40mm]{geometry}
 
+\usepackage{import}
+\usepackage{xifthen}
+\usepackage{pdfpages}
+\usepackage{transparent}
+\usepackage{float}
+
+\newcommand{\incfig}[1]{%
+    \def\svgwidth{\columnwidth}
+    \import{./figures/}{#1.pdf_tex}
+}
+
 \usepackage{graphicx}
 \graphicspath{ {./images/} }
 
@@ -80,27 +91,115 @@ mohou být zadány jak absolutní, tak relativní cestou)
 
 \chapter{Analýza úlohy}
 \section{I-uzlový souborový systém}
-\subsection{I-uzel}
-Základní jednotka souborového systému obsahující všechny podstatné informace o datech souboru nikoliv však jeho jméno.
+\subsection{I-uzel(i-node)}
+Základní jednotka souborového systému obsahující všechny podstatné informace o datech souboru nikoliv však jeho jméno.Jmenovitě:
+\begin{itemize}
+ \item unikátní identifikátor i-uzlu 
+ \item typ souboru (sobor/adresář)
+ \item velikost soboru
+ \item počet odkazů ukazující na tento soubor
+ \item kolekce ukazatelů na data
+\end{itemize}
+\subsubsection{Přímé adresování}
+I-uzel obsahuje přímo adresu data bloku.
+\subsubsection{Inline adresování}
+Nekteré moderní soborové systémy dovolují malé množstvý dat ulozit přímo v inode struktůře místo data bloku. Tento styl je pro tuto implementaci nevhodný kvůli poměrně malé velikosti i-uzlu.
+\subsubsection{Nepřímé adresování n řádu}
+Obdobně jako u nepřímého adresovaní pro proměné tak i zde je uložena pouze adresa na datový block obsahující odkazy o jeden řád nižší a pokud řád dosáhne 0 tak daný odkaz opět jako u přímého adresování obsahuje data souboru.
+\subsection{Adresářový zázman (Dir item)}
+Je další velice důležitou součástí toho systému ukládání souboru, protože dovoluje soubory ve souborovém systému pojmemovávat. Jedná se o jednoduchou strukturu obsahují jméno souboru a unikátní identifikátor i-uzlu stímto názvem.
+\subsection{SuperBlock}
+Je první struktura v souboru, která obsahuje informace pro zavedení a obsluhu daného soborového systému. Určuje rozdělení paměti na 4 části.
+\linebreak
+Obsahuje:
+\begin{itemize}
+ \item celkovou velikost disku
+ \item velikost data bloku
+ \item počet inodu
+ \item počet data bloků
+ \item adresu pole bitů reprezentují použitých inodu
+ \item adresu pole bitů reprezentují použitých data bloků
+ \item adresa prvního i-uzlu (adresa i-uzlové části systému)
+ \item adresa prvního data bloku (adresa datatové části)
+\end{itemize}
 
 
 \chapter{Popis implementace}
+\section{Prostředí}
+Pro implementaci jsem si vybral programovací jazyk C++(CPP) v jeho podobě definované v jeho standartu 17(c++17). Pro jednoduché sestavení využívám nástroj CMake. Program je členěn do 2 částí:
+\begin{itemize}
+ \item inodefs - knihovna, která simuluje samotný souborový systém
+ \item fsterminal - slouží pro obsluhu systému pomocí příkazů
+\end{itemize}
+
 \section{Řešení}
-
-\section{Výsledky}
-
+\subsection{Struktura souboru}
+Samotný soubor obsahují filesystem je rozdělen do 5 částí:
+\begin{enumerate}
+ \item SuperBlock
+ \item I-uzlové bitové pole
+ \item Data blokové bitové pole
+ \item Pole I-uzlů
+ \item Pole data bloků
+\end{enumerate}
+Takto může vypadat rozložení pro předpokladané využití souboru:\linebreak
+\begin{figure}[H]
+\centering
+\incfig{rozlozeni_fs}
+\caption{Ilustrace rozložení souborového systému}
+\end{figure} 
+\subsection{Výpočet rozložení}
+Velikost superbloku($SB_s$) je stálá, ale ostatní bloky jsou vázené na jiné bloky nebo na využitelnou velikost souboru.
+Ze zadané celkové velikosti souboru($D_s$) se odečte velikost superbloku a 2 byty propřípad, že počety bloků a inodů nebude dělitelný 8.
+Dále potřebuje poměr i-uzlů k data blokům v procentech($P_{ib}$) a velikost bloku($B_s$) nacházející se v souboru \ttfamily config.hpp
+\normalfont a velikost i-uzlu($I_s$). Poté se spočítá počet bloků($B_{cnt}$) pro tuto velikost podle:
+\[B_{cnt} = \frac{D_s - SB_s - 2}{\frac{P_{ib}}{8} + \frac{1}{8} + P_{ib}
+\cdot I_s + B_s}\]
+Jednotlivé části čitatele odpovídají velikostem jednotlivých bloků po přenásobení $B_{cnt}$ v bytech.
+\subsection{Bitové pole}
+Občas bývá také pojmenováno bitmapa. Moje implementace využívá implementaci bitSetu v cpp pro obsluhu bitových úprav a vlastního iterátoru. Logická přestava o lineárním poli bitů se neschoduje s implementací. Reálně je toto pole je tvořeno jako posloupnost 0..n bytů, kde jsou bity v bytu jsou LSB.
+\begin{figure}[H]
+ \centering
+ \incfig{LSB}
+ \caption{Logická vs Reálná}
+\end{figure}
+\subsection{Alokace a přidávání}
+V celém programu je hodnota 0 je považovaná jako prázná/neplatná hodnota, až na root prvek, který této hodnoty nabývá jak i-uzel tak datablock a je to jediné legální místo, které tu to hodnotu může nabývat.
+\subsubsection{AddPointer}
+Funkce která pro zadaný i-uzel přidá ukazatel na zadaný data block. Pokud program běží v debug konfiguraci, tak při přetečení adresovatelného postoru i-uzlem ukončí program assetem a pokud je zapnuté logování a tak errorem.Tato situace je logická chyba, která nelze nijak vyřešit, protože její vyřešení by vyžadovalo rozšíření adresovatelného prostoru. V release režimu je v i-uzlu uloženo maximum adresovatelných dat a zbytek je zapsán, ale je nedostupných.
+\subsubsection{AlocateX}
+Je dvojice funkcí, kde X je nahrazeno (inode/datablock), která projte příslužné bitové pole a pokud narazí na volný prvek, tak ho zabere a vrátí jeho indentifikátor.
+\subsection{Dealokace a odstranění}
+\subsubsection{freeX}
+Obdobně jako AlocateX, ale jedná se o inverzní operaci, která navíc dané místo naplní opakujícím se znakem \textbackslash0.
+\subsubsection{Remove dir item}
+Je funkce pro odstranění záznamu adresáře z rodičovkého adresáře pokud daný záznam je nalezen, tak je odstraněn a nahrazen posledním záznamem v tomto bloku a pokud je to zároveň poslední záznam v tomto bloku tak tento block zůstane alokovaný, ale bude prázný. Regenerace na úrovni bloků by byla příliš nákladná a navíc by zanesla do systému problém s nespojitostí datových ukazatelů v i-uzlu.
 
 
 \chapter{Uživatelská příručka}
-\section{Překlad a použití}
+\section{Překlad}
+Pro sestavení je potřeba využít nástoje CMake a díky tomu máte tyto možnosti:
+\begin{itemize}
+ \item Logovani - vytvoření souboru main.log obsahující informace o běhu programu podle nastaveni \ttfamily LOGLEVEL \normalfont v \ttfamily log.hpp \normalfont
+ \item Debug build - sestaveni programu s kontrolou stavu programu za běhu
+ \item Release build - výchozí verze programu, která nechrání proti erroru, ale přesto mohou nastat
+\end{itemize}
+Příklad sestavení pro normální běh programu:
 
+\ttfamily cmake -S <adresář projektu> -B <adresář sestavení>
 
+\normalfont
+\noindent Sestavení v debug modu:
 
-\section{Zajímavé příkazy}
+\ttfamily cmake -DCMAKE\char`_BUILD\char`_TYPE=Debug -S <adresář projektu> -B <adresář sestavení>
 
+\normalfont
+\noindent Sestavení s logováním:
 
+\ttfamily cmake -DLOGFLAG=ON -S <adresář projektu> -B <adresář sestavení>
 
-
-\chapter{Závěr}
-
+\normalfont
+\noindent
+Poté můžeme zavolat náš systémový nástroj pro setavení projektu nad adresářem setavením.
+Následně v \ttfamily adresářem setavení/app \normalfont můžeme najít sestavený program pro obsluhu souborového pomocí terminálu.
 \end{document}

@@ -272,7 +272,7 @@ bool procesLine(fileSystem& fs, std::ostream& out, std::string line)
 
     if (!fs.isFormated())
     {
-        out << "File system is no formated pls format it before running any commands!" << std::endl;
+        out << "File system is no formated please format it before running any commands!" << std::endl;
         return true;
     }
     if (token.compare("ls") == 0)

@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="210mm"
+   height="297mm"
+   viewBox="0 0 210 297"
+   version="1.1"
+   id="svg5"
+   inkscape:version="1.1.1 (3bf5ae0d25, 2021-09-20, custom)"
+   sodipodi:docname="rozlozeni_fs.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview7"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:document-units="mm"
+     showgrid="false"
+     inkscape:zoom="0.91591557"
+     inkscape:cx="139.75087"
+     inkscape:cy="89.527902"
+     inkscape:window-width="1920"
+     inkscape:window-height="1013"
+     inkscape:window-x="1920"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="layer1" />
+  <defs
+     id="defs2" />
+  <g
+     inkscape:label="Vrstva 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <rect
+       style="fill:#00ffff;stroke-width:0.264583"
+       id="rect53"
+       width="11.438789"
+       height="11.438789"
+       x="8.1705637"
+       y="12.255846" />
+    <rect
+       style="fill:#008000;stroke-width:0.118102"
+       id="rect99"
+       width="5.9537244"
+       height="11.43879"
+       x="19.609352"
+       y="12.255846" />
+    <rect
+       style="fill:#00ff00;stroke-width:0.134688"
+       id="rect123"
+       width="10.059531"
+       height="11.438791"
+       x="25.563076"
+       y="12.255846" />
+    <rect
+       style="fill:#0000ff;stroke-width:0.170678"
+       id="rect307"
+       width="38.70805"
+       height="11.438791"
+       x="35.622608"
+       y="12.255846" />
+    <rect
+       style="fill:#009fff;fill-opacity:1;stroke-width:0.346913"
+       id="rect1124"
+       width="79.152351"
+       height="11.438792"
+       x="74.330658"
+       y="12.255846" />
+  </g>
+</svg>
