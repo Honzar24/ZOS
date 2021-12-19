@@ -3,7 +3,6 @@
 *test*
 *.idea*
 ZOS2021_SP.pdf
-*.pdf
 *.aux
 *.out
 *.gz

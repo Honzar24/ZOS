@@ -52,7 +52,7 @@
 
 \chapter{Zadání}
 \section{Téma}
-Tématem semestrální práce bude práce se zjednodušeným souborovým systémem založeným na
+Tématem semestrální práce, bude práce se zjednodušeným souborovým systémem založeným na
 i-uzlech. Vaším cílem bude splnit několik vybraných úloh.
 Základní funkčnost, kterou musí program splňovat. Formát výpisů je závazný.
 Program bude mít jeden parametr a tím bude název vašeho souborového systému. Po spuštění bude
@@ -103,12 +103,12 @@ Základní jednotka souborového systému obsahující všechny podstatné infor
 \subsubsection{Přímé adresování}
 I-uzel obsahuje přímo adresu data bloku.
 \subsubsection{Inline adresování}
-Nekteré moderní soborové systémy dovolují malé množstvý dat uložit přímo v i-uzlové struktůře místo data bloku. Tento styl je pro tuto implementaci nevhodný kvůli poměrně malé velikosti i-uzlu.
+Některé moderní soborové systémy dovolují malé množství dat uložit přímo v i-uzlové struktůře místo data bloku. Tento styl je pro tuto implementaci nevhodný kvůli poměrně malé velikosti i-uzlu.
 \subsubsection{Nepřímé adresování n řádu}
-Obdobně jako u nepřímého adresovaní pro proměné tak i zde je uložena pouze adresa na datový block obsahující odkazy o jeden řád nižší a pokud řád dosáhne 0 tak daný odkaz opět jako u přímého adresování obsahuje data souboru.
+Obdobně jako u nepřímého adresování pro proměnné tak i zde je uložena pouze adresa na datový blok obsahující odkazy o jeden řád nižší a pokud řád dosáhne 0, tak daný odkaz opět jako u přímého adresování obsahuje data souboru.
 \subsection{Adresářový zázman (Dir item)}
-Je další velice důležitou součástí toho systému ukládání souboru, protože dovoluje soubory ve souborovém systému pojmemovávat. Jedná se o jednoduchou strukturu obsahují jméno souboru a unikátní identifikátor i-uzlu stímto názvem.
-\subsection{SuperBlock}
+Je další velice důležitou součástí toho systému ukládání souboru, protože dovoluje soubory ve souborovém systému pojmemovávat. Jedná se o jednoduchou strukturu obsahují jméno souboru a unikátní identifikátor i-uzlu s tímto názvem.
+\subsection{SuperBlok}
 Je první struktura v souboru, která obsahuje informace pro zavedení a obsluhu daného soborového systému. Určuje rozdělení paměti na 4 části.
 \linebreak
 Obsahuje:
@@ -117,8 +117,8 @@ Obsahuje:
  \item velikost data bloku
  \item počet inodu
  \item počet data bloků
- \item adresu pole bitů reprezentují použitých inodu
- \item adresu pole bitů reprezentují použitých data bloků
+ \item adresu pole bitů reprezentují použité i-uzly
+ \item adresu pole bitů reprezentují použité data bloky
  \item adresa prvního i-uzlu (adresa i-uzlové části systému)
  \item adresa prvního data bloku (adresa datatové části)
 \end{itemize}
@@ -134,9 +134,9 @@ Pro implementaci jsem si vybral programovací jazyk C++(CPP) v jeho podobě defi
 
 \section{Řešení}
 \subsection{Struktura souboru}
-Samotný soubor obsahují filesystem je rozdělen do 5 částí:
+Samotný soubor obsahují filesystem, je rozdělen do 5 částí:
 \begin{enumerate}
- \item SuperBlock
+ \item SuperBlok
  \item I-uzlové bitové pole
  \item Data blokové bitové pole
  \item Pole I-uzlů
@@ -149,42 +149,42 @@ Takto může vypadat rozložení pro předpokladané využití souboru:\linebrea
 \caption{Ilustrace rozložení souborového systému}
 \end{figure} 
 \subsection{Výpočet rozložení}
-Velikost superbloku($SB_s$) je stálá, ale ostatní bloky jsou vázené na jiné bloky nebo na využitelnou velikost souboru.
-Ze zadané celkové velikosti souboru($D_s$) se odečte velikost superbloku a 2 byty propřípad, že počety bloků a inodů nebude dělitelný 8.
+Velikost superbloku($SB_s$) je stálá, ale ostatní bloky jsou vázané na jiné bloky nebo na využitelnou velikost souboru.
+Ze zadané celkové velikosti souboru($D_s$) se odečte velikost superbloku a 2 byty pro případ, že počty bloků a inodů nebudou dělitelné 8.
 Dále potřebuje poměr i-uzlů k data blokům v procentech($P_{ib}$) a velikost bloku($B_s$) nacházející se v souboru \ttfamily config.hpp
 \normalfont a velikost i-uzlu($I_s$). Poté se spočítá počet bloků($B_{cnt}$) pro tuto velikost podle:
 \[B_{cnt} = \frac{D_s - SB_s - 2}{\frac{P_{ib}}{8} + \frac{1}{8} + P_{ib}
 \cdot I_s + B_s}\]
-Jednotlivé části čitatele odpovídají velikostem jednotlivých bloků po přenásobení $B_{cnt}$ v bytech.
+Jednotlivé části jmenovatele odpovídají velikostem jednotlivých bloků po přenásobení $B_{cnt}$ v bytech.
 \subsection{Bitové pole}
-Občas bývá také pojmenováno bitmapa. Moje implementace využívá implementaci bitSetu v cpp pro obsluhu bitových úprav a vlastního iterátoru. Logická přestava o lineárním poli bitů se neschoduje s implementací. Reálně je toto pole je tvořeno jako posloupnost 0..n bytů, kde jsou bity v bytu jsou LSB.
+Občas bývá také pojmenováno bitmapa. Moje implementace využívá implementaci bitSetu v CPP pro obsluhu bitových úprav a vlastního iterátoru. Logická představa o lineárním poli bitů se neschoduje s implementací. Reálně je toto pole je tvořeno jako posloupnost 0..n bytů, kde jsou bity v bajtu jsou LSB.
 \begin{figure}[H]
  \centering
  \incfig{LSB}
  \caption{Logická vs Reálná}
 \end{figure}
 \subsection{Alokace a přidávání}
-V celém programu je hodnota 0 je považovaná jako prázná/neplatná hodnota, až na root prvek, který této hodnoty nabývá jak i-uzel tak datablock a je to jediné legální místo, které tu to hodnotu může nabývat.
+V celém programu je hodnota 0 považována jako prázná/neplatná hodnota, až na root prvek, který této hodnoty nabývá jak i-uzel, tak datablok a je to jediné legální místo, které této hodnoty může nabývat.
 \subsubsection{AddPointer}
-Funkce která pro zadaný i-uzel přidá ukazatel na zadaný data block. Pokud program běží v debug konfiguraci, tak při přetečení adresovatelného postoru i-uzlem ukončí program assetem a pokud je zapnuté logování a tak errorem.Tato situace je logická chyba, která nelze nijak vyřešit, protože její vyřešení by vyžadovalo rozšíření adresovatelného prostoru. V release režimu je v i-uzlu uloženo maximum adresovatelných dat a zbytek je zapsán, ale je nedostupných.
+Funkce, která pro zadaný i-uzel přidá ukazatel na zadaný datablok. Pokud program běží v debug konfiguraci, tak při přetečení adresovatelného postoru i-uzlem se program ukončí  assetem a pokud je zapnuté logování , tak se zapíše overflow error.Tato situace je logická chyba, která nelze nijak vyřešit, protože její vyřešení by vyžadovalo rozšíření adresovatelného prostoru. V release režimu je v i-uzlu uloženo maximum adresovatelných dat a zbytek je zapsán, ale je nedostupný.
 \subsubsection{AlocateX}
-Je dvojice funkcí, kde X je nahrazeno (inode/datablock), která projte příslužné bitové pole a pokud narazí na volný prvek, tak ho zabere a vrátí jeho indentifikátor.
+Je dvojice funkcí, kde X je nahrazeno (inode/datablock), která projde příslušné bitové pole a pokud narazí na volný prvek, tak ho zabere a vrátí jeho indentifikátor.
 \subsection{Dealokace a odstranění}
 \subsubsection{freeX}
 Obdobně jako AlocateX, ale jedná se o inverzní operaci, která navíc dané místo naplní opakujícím se znakem \textbackslash0.
 \subsubsection{Remove dir item}
-Je funkce pro odstranění záznamu adresáře z rodičovkého adresáře pokud daný záznam je nalezen, tak je odstraněn a nahrazen posledním záznamem v tomto bloku a pokud je to zároveň poslední záznam v tomto bloku tak tento block zůstane alokovaný, ale bude prázný. Regenerace na úrovni bloků by byla příliš nákladná a navíc by zanesla do systému problém s nespojitostí datových ukazatelů v i-uzlu.
+Je funkce pro odstranění záznamu adresáře z rodičovkého adresáře. Pokud daný záznam je nalezen, tak je odstraněn a nahrazen posledním záznamem v tomto bloku a pokud je to zároveň poslední záznam v tomto bloku, tak tento blok zůstane alokovaný, ale bude prázdný. Regenerace na úrovni bloků by byla příliš nákladná a navíc by zanesla do systému problém s nespojitostí datových ukazatelů v i-uzlu.
 
 
 
 
 \chapter{Uživatelská příručka}
 \section{Překlad}
-Pro sestavení je potřeba využít nástoje CMake a díky tomu máte tyto možnosti:
+Pro sestavení je potřeba využít nástroje CMake a díky tomu máte tyto možnosti:
 \begin{itemize}
- \item Logovani - vytvoření souboru main.log obsahující informace o běhu programu podle nastaveni \ttfamily LOGLEVEL \normalfont v \ttfamily log.hpp \normalfont
- \item Debug build - sestaveni programu s kontrolou stavu programu za běhu
- \item Release build - výchozí verze programu, která nechrání proti erroru, ale přesto mohou nastat
+ \item Logování - vytvoření souboru main.log obsahující informace o běhu programu podle nastaveni \ttfamily LOGLEVEL \normalfont v \ttfamily log.hpp \normalfont
+ \item Debug build - sestavení programu s kontrolou stavu programu za běhu
+ \item Release build - výchozí verze programu, která nechrání proti erroru, ale přesto error může nastat
 \end{itemize}
 Příklad sestavení pro normální běh programu:
 
@@ -202,8 +202,8 @@ Příklad sestavení pro normální běh programu:
 
 \normalfont
 \noindent
-Poté můžeme zavolat náš systémový nástroj pro setavení projektu nad adresářem setavením.
-Následně v \ttfamily adresářem setavení/app \normalfont můžeme najít sestavený program pro obsluhu souborového pomocí terminálu.
+Poté můžeme zavolat náš systémový nástroj pro setavení projektu nad adresářem setavení.
+Následně v \ttfamily adresáři setavení/app \normalfont můžeme najít sestavený program pro obsluhu souborového systému pomocí terminálu.
 \section{Nastavení parametrů}
-Věškeré technické parametry souborového systému lze před sestavením samotné aplikace. Při změnách je potřeba zachovat u veliksoti bloku dvě podnímky velikost bloku je celočíselně dělitelná velikostí typu ukazatele a zárověn datablock musí být větší než velikost 2 diritemů. Dále dříve sestavený souborouvý systém se při změnách typů stává nepřenositelný.
+Věškeré technické parametry souborového systému lze změnit před sestavením samotné aplikace. Při změnách veliksoti bloku je potřeba zachovat dvě podnímky: velikost bloku je celočíselně dělitelná velikostí typu ukazatele a zárověn datablok musí být větší než velikost 2 diritemů. Dříve sestavený souborouvý systém se při změnách typů stává nepřenositelný.
 \end{document}
