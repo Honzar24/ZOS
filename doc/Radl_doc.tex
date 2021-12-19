@@ -55,7 +55,7 @@
 Tématem semestrální práce bude práce se zjednodušeným souborovým systémem založeným na
 i-uzlech. Vaším cílem bude splnit několik vybraných úloh.
 Základní funkčnost, kterou musí program splňovat. Formát výpisů je závazný.
-Program bude mít jeden parametr a tím bude název Vašeho souborového systému. Po spuštění bude
+Program bude mít jeden parametr a tím bude název vašeho souborového systému. Po spuštění bude
 program čekat na zadání jednotlivých příkazů s minimální funkčností viz níže (všechny soubory
 mohou být zadány jak absolutní, tak relativní cestou)
 \begin{itemize}
@@ -67,7 +67,7 @@ mohou být zadány jak absolutní, tak relativní cestou)
  \item cp - kopíruje soubory
  \item mv - přesouvá soubory
  \item rm - maže soubory
- \item ln - vytvoří hard link na soubor
+ \item ln - vytvoří hardlink na soubor
  \item cat - vypíše obsah souboru jako sekvenci charů
  
  \item mkdir - vytváří adresář
@@ -103,7 +103,7 @@ Základní jednotka souborového systému obsahující všechny podstatné infor
 \subsubsection{Přímé adresování}
 I-uzel obsahuje přímo adresu data bloku.
 \subsubsection{Inline adresování}
-Nekteré moderní soborové systémy dovolují malé množstvý dat ulozit přímo v inode struktůře místo data bloku. Tento styl je pro tuto implementaci nevhodný kvůli poměrně malé velikosti i-uzlu.
+Nekteré moderní soborové systémy dovolují malé množstvý dat uložit přímo v i-uzlové struktůře místo data bloku. Tento styl je pro tuto implementaci nevhodný kvůli poměrně malé velikosti i-uzlu.
 \subsubsection{Nepřímé adresování n řádu}
 Obdobně jako u nepřímého adresovaní pro proměné tak i zde je uložena pouze adresa na datový block obsahující odkazy o jeden řád nižší a pokud řád dosáhne 0 tak daný odkaz opět jako u přímého adresování obsahuje data souboru.
 \subsection{Adresářový zázman (Dir item)}
@@ -176,6 +176,8 @@ Obdobně jako AlocateX, ale jedná se o inverzní operaci, která navíc dané m
 Je funkce pro odstranění záznamu adresáře z rodičovkého adresáře pokud daný záznam je nalezen, tak je odstraněn a nahrazen posledním záznamem v tomto bloku a pokud je to zároveň poslední záznam v tomto bloku tak tento block zůstane alokovaný, ale bude prázný. Regenerace na úrovni bloků by byla příliš nákladná a navíc by zanesla do systému problém s nespojitostí datových ukazatelů v i-uzlu.
 
 
+
+
 \chapter{Uživatelská příručka}
 \section{Překlad}
 Pro sestavení je potřeba využít nástoje CMake a díky tomu máte tyto možnosti:
@@ -202,4 +204,6 @@ Příklad sestavení pro normální běh programu:
 \noindent
 Poté můžeme zavolat náš systémový nástroj pro setavení projektu nad adresářem setavením.
 Následně v \ttfamily adresářem setavení/app \normalfont můžeme najít sestavený program pro obsluhu souborového pomocí terminálu.
+\section{Nastavení parametrů}
+Věškeré technické parametry souborového systému lze před sestavením samotné aplikace. Při změnách je potřeba zachovat u veliksoti bloku dvě podnímky velikost bloku je celočíselně dělitelná velikostí typu ukazatele a zárověn datablock musí být větší než velikost 2 diritemů. Dále dříve sestavený souborouvý systém se při změnách typů stává nepřenositelný.
 \end{document}
