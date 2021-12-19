@@ -63,7 +63,7 @@ public:
 private:
     std::string fileName;
     std::fstream fileStream;
-    superBlock sb = {0};
+    superBlock sb = { 0 };
     fileBitArray inodeBitArray;
     fileBitArray dataBlockBitArray;
     /**
@@ -271,7 +271,7 @@ public:
     * @param parentInnodeID
     * @return errorCode OK|EXIST (nelze zalozit, jiz existuje)|PATH NOT FOUND (neexistuje zadana cesta)
     */
-    errorCode mkdir(const char dirName[fileLiteralLenght], size_type parentInnodeID);
+    errorCode mkdir(const char dirName[fileLiteralLenght - 1], size_type parentInnodeID);
 
     /**
      * @brief Smazani prazneho adresare

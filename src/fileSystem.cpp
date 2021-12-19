@@ -593,7 +593,7 @@ errorCode fileSystem::ln(size_type srcID, size_type destDirID, const c_file_name
 }
 
 
-errorCode fileSystem::mkdir(const char dirName[fileLiteralLenght], size_type parentInnodeID)
+errorCode fileSystem::mkdir(const char dirName[fileLiteralLenght - 1], size_type parentInnodeID)
 {
     inode dir = alocateNewInode();
     if (dir.id == 0)
@@ -906,8 +906,8 @@ errorCode fileSystem::calc(size_type size)
     size -= sizeof(superBlock) + 2;
     assert(sb.blockSize >= sizeof(dirItem) * 2);
     assert(sb.blockSize % sizeof(pointer_type) == 0);
-    sb.blockCount = size / ((1 + pomerDataInode) / 8 + pomerDataInode * sizeof(inode) + sb.blockSize);
-    sb.inodeCount = pomerDataInode * sb.blockCount;
+    sb.blockCount = size / ((1 + pomerInodeDataBlock) / 8 + pomerInodeDataBlock * sizeof(inode) + sb.blockSize);
+    sb.inodeCount = pomerInodeDataBlock * sb.blockCount;
     assert(sb.blockCount >= minDataBlockCount);
     assert(sb.inodeCount >= minInodeCount);
     if (!sb.setupFilePointers())

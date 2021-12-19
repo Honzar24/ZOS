@@ -42,7 +42,7 @@ static_assert(defaultBlockCount % 8 == 0);
 constexpr const size_type defaultInodeCount = 128;
 static_assert(defaultInodeCount % 8 == 0);
 
-constexpr const float pomerDataInode = 25 / 100.0;
+constexpr const float pomerInodeDataBlock = 25 / 100.0;
 constexpr const size_t minInodeCount = 16;
 constexpr const size_t minDataBlockCount = 64;
 
