@@ -30,7 +30,7 @@ static_assert(std::size(defaulDescription) <= maxDescriptionLenght);
 /// Velikost bloku v Bytech
 
 constexpr const size_type defaultBlockSize = 1024;
-static_assert(defaultBlockSize % 8 == 0);
+static_assert(defaultBlockSize % sizeof(pointer_type) == 0);
 
 // zakladni pocet bloku na disku
 
