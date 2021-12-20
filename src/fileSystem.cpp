@@ -103,7 +103,7 @@ bool fileSystem::addToIndirect(pointer_type pointer)
 void fileSystem::addPointer(inode& inode, pointer_type pointer)
 {
     DEBUG("Adding pointer to " << STREAMADDRESS(pointer) << " to inode(" << inode.id << ")");
-    for (size_t i = inode.id != 0 ? 0 : 1; i < directPointersCount; i++)
+    for (size_t i = 0; i < directPointersCount; i++)
     {
         if (inode.pointers.direct[i] == 0)
         {

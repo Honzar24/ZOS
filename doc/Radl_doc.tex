@@ -157,14 +157,14 @@ Dále potřebuje poměr i-uzlů k data blokům v procentech($P_{ib}$) a velikost
 \cdot I_s + B_s}\]
 Jednotlivé části jmenovatele odpovídají velikostem jednotlivých bloků po přenásobení $B_{cnt}$ v bytech.
 \subsection{Bitové pole}
-Občas bývá také pojmenováno bitmapa. Moje implementace využívá implementaci bitSetu v CPP pro obsluhu bitových úprav a vlastního iterátoru. Logická představa o lineárním poli bitů se neschoduje s implementací. Reálně je toto pole je tvořeno jako posloupnost 0..n bytů, kde jsou bity v bajtu jsou LSB.
+Občas bývá také pojmenováno bitmapa. Moje implementace využívá implementaci bitSetu v CPP pro obsluhu bitových úprav a vlastního iterátoru. Logická představa o lineárním poli bitů se neschoduje s implementací. Reálně je toto pole je tvořeno jako posloupnost 0..n bytů, kde jsou bity v bytu jsou LSB.
 \begin{figure}[H]
  \centering
  \incfig{LSB}
  \caption{Logická vs Reálná}
 \end{figure}
 \subsection{Alokace a přidávání}
-V celém programu je hodnota 0 považována jako prázná/neplatná hodnota, až na root prvek, který této hodnoty nabývá jak i-uzel, tak datablok a je to jediné legální místo, které této hodnoty může nabývat.
+V celém programu je hodnota 0 považována jako prázná/neplatná hodnota, až na root prvek, který této hodnoty nabývá číslo i-uzlu a je to jediné legální místo, které této hodnoty může nabývat. A jeho validitu potvzuje bitové pole pro příznak obsazenosti tohoto i-uzlu.
 \subsubsection{AddPointer}
 Funkce, která pro zadaný i-uzel přidá ukazatel na zadaný datablok. Pokud program běží v debug konfiguraci, tak při přetečení adresovatelného postoru i-uzlem se program ukončí  assetem a pokud je zapnuté logování , tak se zapíše overflow error.Tato situace je logická chyba, která nelze nijak vyřešit, protože její vyřešení by vyžadovalo rozšíření adresovatelného prostoru. V release režimu je v i-uzlu uloženo maximum adresovatelných dat a zbytek je zapsán, ale je nedostupný.
 \subsubsection{AlocateX}
